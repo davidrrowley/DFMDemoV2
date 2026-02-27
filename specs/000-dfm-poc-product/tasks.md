@@ -136,6 +136,7 @@ acceptance:
 - `run_audit_log` has four rows with valid status values
 - Re-running the same period does not duplicate `canonical_holdings` rows
 - Disabling one DFM in `dfm_registry.json` results in a three-DFM run completing without error
+- Full four-DFM run completes within 30 minutes on Fabric shared compute (per HR-09.6)
 
 validate:
 - Execute the end-to-end checklist in `quickstart.md` step by step

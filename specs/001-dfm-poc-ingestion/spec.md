@@ -98,7 +98,7 @@ As an analyst, I can see the run audit log and reconciliation summary to underst
 - **FR-004**: System MUST support four date formats: `dd-MMM-yyyy`, `dd/MM/yyyy`, ISO datetime, and filename-inferred date; `DATE_FROM_FILENAME` flag must be set when filename inference is used.
 - **FR-005**: System MUST map source fields to the canonical schema defined in `02_data_contracts.md` using the DFM-specific mapping in the corresponding `1x_dfm_*.md` files.
 - **FR-006**: System MUST normalise all monetary values to GBP using the five-step priority chain: (1) local GBP, (2) GBP-denominated column, (3) position-level FX rate, (4) `fx_rates.csv`, (5) null + `FX_NOT_AVAILABLE` flag.
-- **FR-007**: System MUST apply row-hash de-duplication (SHA-256 or MD5 of deterministic source fields) before writing to `canonical_holdings` to prevent double-counting from duplicate files.
+- **FR-007**: System MUST apply row-hash de-duplication (SHA-256 of deterministic source fields) before writing to `canonical_holdings` to prevent double-counting from duplicate files.
 - **FR-008**: System MUST write all ingested rows to the `canonical_holdings` Delta table via MERGE upsert on `row_hash`.
 - **FR-009**: System MUST emit `parse_errors` rows for rows that fail field-level parsing; ingestion of remaining rows must continue.
 - **FR-010**: System MUST emit `schema_drift_events` rows when a source file is missing expected columns or contains unexpected columns.
