@@ -28,7 +28,7 @@ entrypoint. Everything else depends on this foundation.
   - `raw_parsing_config.json`
   - `rules_config.json`
   - `currency_mapping.json`
-  - `fx_rates.json` (for the target period)
+  - `fx_rates.csv` (for the target period)
 - `nb_run_all` skeleton: accepts `period` parameter, generates `run_id`, loads config,
   provides DFM invocation loop with try/catch
 - Shared Python library module with skeleton functions (`parse_numeric`, `parse_date`,
@@ -144,13 +144,16 @@ passes baseline acceptance criteria, and all governance tables are populated.
 
 ## Phase Summary
 
-| Phase | Features | Key output | Estimated timing |
-|---|---|---|---|
-| Phase 1 — Foundation | Pre-requisite | Delta tables, config, `nb_run_all` skeleton | Evening 1, first half |
-| Phase 2 — DFM Ingestion | F01 | `canonical_holdings`, parse errors, drift events, audit rows | Evening 1–2 |
-| Phase 3 — Validation | F02 | `validation_events` | Evening 2, early |
-| Phase 4 — Aggregation & Outputs | F03 | `policy_aggregates`, `tpir_load_equivalent`, reports | Evening 2, mid-late |
-| PoC Completion | All | Full acceptance checklist passed | End of Evening 2 |
+| Phase | Features | Key output | Estimated timing | Est. hours |
+|---|---|---|---|---|
+| Phase 1 — Foundation | Pre-requisite | Delta tables, config, `nb_run_all` skeleton | Evening 1, first half | ~1.5 h |
+| Phase 2 — DFM Ingestion | F01 | `canonical_holdings`, parse errors, drift events, audit rows | Evening 1–2 | ~3.0 h |
+| Phase 3 — Validation | F02 | `validation_events` | Evening 2, early | ~1.0 h |
+| Phase 4 — Aggregation & Outputs | F03 | `policy_aggregates`, `tpir_load_equivalent`, reports | Evening 2, mid-late | ~1.5 h |
+| PoC Completion | All | Full acceptance checklist passed | End of Evening 2 | ~7.0 h total |
+
+> **Evening definition:** Each evening is assumed to be approximately 3–3.5 focused hours.
+> Total budget is ~7 hours. If Phase 2 runs long, defer MAP_001 and POP_001 to Phase 3 scope cut.
 
 ---
 

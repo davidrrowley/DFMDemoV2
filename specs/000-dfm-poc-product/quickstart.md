@@ -24,7 +24,7 @@ Before running the pipeline, confirm the following:
   - `raw_parsing_config.json` — Per-DFM file discovery and column mapping
   - `rules_config.json` — Validation rule thresholds and enable/disable flags
   - `currency_mapping.json` — Currency description → ISO code mapping
-  - `fx_rates.json` — FX rates for GBP conversion (update for each period)
+  - `fx_rates.csv` — FX rates for GBP conversion (update for each period)
 
 ### Source Files
 
@@ -55,7 +55,7 @@ If this is the first time setting up the PoC:
 2. **Run the setup notebook** (Phase 1 of `plan.md`) to create all Delta tables.
 3. **Upload config files** to `/Files/config/` via the Fabric Lakehouse Files explorer.
 4. **Review `dfm_registry.json`** and ensure all four DFMs are set to `"enabled": true`.
-5. **Update `fx_rates.json`** with the correct FX rates for your period (GBP base).
+5. **Update `fx_rates.csv`** with the correct FX rates for your period (GBP base).
 
 ---
 
@@ -163,7 +163,7 @@ giving a full history of runs for the period.
 |---|---|---|
 | `run_audit_log.status = NO_FILES` for a DFM | No source files in landing zone | Upload source files to the correct path |
 | `run_audit_log.status = FAILED` for a DFM | Notebook exception during ingestion | Check `parse_errors` table and notebook cell output |
-| `policy_aggregates` totals don't match Excel | Parse errors excluded rows, or FX rate mismatch | Check `parse_errors` count and `fx_rates.json` |
+| `policy_aggregates` totals don't match Excel | Parse errors excluded rows, or FX rate mismatch | Check `parse_errors` count and `fx_rates.csv` |
 | `validation_events` has no MV_001 rows | `local_bid_price` or `holding` null for DFM | Check `canonical_holdings.data_quality_flags` for the DFM |
 | Output files not in `/Files/output/` | `nb_reports` did not run or raised an error | Check `nb_run_all` cell output for the reports step |
 

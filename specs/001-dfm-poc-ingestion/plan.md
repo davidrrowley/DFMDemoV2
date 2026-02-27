@@ -17,7 +17,7 @@ Deliver a Microsoft Fabric Lakehouse pipeline (PySpark notebooks + Delta Lake) t
 **Target Platform**: Microsoft Fabric shared Spark compute — no local execution; notebooks must be run in a Fabric workspace
 **Project Type**: data pipeline (PySpark notebooks + Delta Lake; no application server, no API)
 **Performance Goals**: Single period run (all four DFMs) completes within 30 minutes on Fabric shared compute
-**Constraints**: PoC only; time-boxed to 2 evenings; all DFM differences isolated to config and extractor functions; AI-assisted; no CI/CD pipeline required
+**Constraints**: PoC only; time-boxed to 2 evenings (~7 hours total; see `specs/000-dfm-poc-product/roadmap.md` for phase breakdown); all DFM differences isolated to config and extractor functions; AI-assisted; no CI/CD pipeline required
 **Scale/Scope**: Four DFMs, single period per run, expected dozens to hundreds of holdings rows per DFM per period
 
 ---

@@ -10,6 +10,7 @@
 ### T-DFM-001: Create Fabric Lakehouse Delta tables and config upload
 
 owner: app-python
+story: US-1 (enables)
 
 Create all seven Delta tables (`canonical_holdings`, `tpir_load_equivalent`, `policy_aggregates`,
 `validation_events`, `run_audit_log`, `schema_drift_events`, `parse_errors`) with schemas defined
@@ -17,7 +18,8 @@ in `02_data_contracts.md`. Upload config files to `/Files/config/`.
 
 acceptance:
 - All seven Delta tables created in the Lakehouse with correct schemas
-- Config files (`dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`, `currency_mapping.json`) present under `/Files/config/`
+- Schemas must match `02_data_contracts.md` (feature-level DDL, the implementation reference); verify consistency with `specs/000-dfm-poc-product/data-model.md` (authoritative product schema) before deployment
+- Config files (`dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`, `currency_mapping.json`, `fx_rates.csv`) present under `/Files/config/`
 
 validate:
 - Run `spark.catalog.listTables()` and confirm all seven table names are present
@@ -28,10 +30,12 @@ validate:
 ### T-DFM-002: Implement nb_run_all entrypoint notebook
 
 owner: app-python
+story: US-1 (enables)
 
 Create notebook `nb_run_all` with a `period` parameter (YYYY-MM format). Generate `run_id` as UTC
 timestamp. Invoke each DFM ingestion notebook in sequence, continuing on failure. Emit audit entry
-per DFM including "no files" cases.
+per DFM including "no files" cases. Implements the orchestration contract defined in
+`03_run_orchestration.md`.
 
 acceptance:
 - Notebook accepts `period` parameter and generates `run_id`
@@ -41,6 +45,29 @@ acceptance:
 validate:
 - Run with a test period; verify `run_audit_log` has four rows (one per DFM)
 - Introduce a deliberate failure in one DFM; confirm the other three still complete
+- Run `nb_run_all` a second time for the same `period`; confirm `COUNT(*) FROM canonical_holdings WHERE period=<period>` matches the count from the first run (MERGE upsert idempotency)
+
+---
+
+### T-DFM-003: Create shared Python utility library
+
+owner: app-python
+story: US-1 (enables)
+
+Create the shared Python module importable by all DFM notebooks. Implement skeleton functions:
+`parse_numeric(value, european=False)`, `parse_date(value)`, `apply_fx(local_value,
+local_currency, fx_rates)`, `row_hash(fields)`, `emit_audit(...)`, `emit_parse_error(...)`,
+`emit_drift_event(...)`, `emit_validation_event(...)`.
+
+acceptance:
+- All eight functions are importable from all DFM notebooks without error
+- `parse_numeric` handles both UK/US and European conventions per `raw_parsing_config.json` flag
+- `row_hash` produces a deterministic SHA-256 hash for a given set of input fields
+
+validate:
+- Import the library in a scratch notebook; call each function with known inputs and confirm expected outputs
+- Confirm `parse_numeric("3.479,29", european=True)` returns `3479.29`
+- Confirm `parse_numeric("3,479.29", european=False)` returns `3479.29`
 
 ---
 
@@ -49,6 +76,7 @@ validate:
 ### T-DFM-010: Implement Brown Shipley ingestion notebook
 
 owner: app-python
+story: US-1
 
 Parse `Notification.csv` (positions) and `Notification - Cash.csv` (cash) from the landing zone.
 Apply header-row detection and European decimal parsing. Map to canonical columns per
@@ -70,6 +98,7 @@ validate:
 ### T-DFM-011: Implement WH Ireland ingestion notebook
 
 owner: app-python
+story: US-1
 
 Parse the Standard Life Valuation Data XLSX. Map to canonical columns per `11_dfm_wh_ireland.md`.
 Apply GBP rules: use `Settled Market Value (PC)` when currency is GBP; use ABC column when base
@@ -91,6 +120,7 @@ validate:
 ### T-DFM-012: Implement Pershing ingestion notebook
 
 owner: app-python
+story: US-1
 
 Parse `Positions.csv` (primary) and PSL valuation holdings CSV (secondary). Implement row-hash
 de-duplication and prefer `Positions.csv` rows; backfill missing policies/values from valuation
@@ -111,8 +141,10 @@ validate:
 ### T-DFM-013: Implement Castlebay ingestion notebook
 
 owner: app-python
+story: US-1
 
-Parse `Cde OSB Val 31Dec25.xlsx` — both `Customer 1` and `Customer 2` sheets. Header row is row 3.
+Parse `Cde OSB Val 31Dec25.xlsx` per `13_dfm_castlebay.md` — both `Customer 1` and `Customer 2`
+sheets. Header row is row 3.
 Infer `report_date` from filename (`31Dec25` → `2025-12-31`). Map currency via
 `currency_mapping.json`. Set cash and accrued to 0 with flags. Write rows to `canonical_holdings`.
 
@@ -133,8 +165,9 @@ validate:
 ### T-DFM-020: Implement MV_001 market value recalculation check
 
 owner: app-python
+story: US-2
 
-Implement `MV_001` from `rules_config.json`. For each row in `canonical_holdings` where
+Implement `MV_001` per `05_validations.md` from `rules_config.json`. For each row in `canonical_holdings` where
 `holding`, `local_bid_price`, and `bid_value_gbp` are all non-null, compute
 `holding * local_bid_price * fx_rate` and compare to `bid_value_gbp`. Emit a `fail` event to
 `validation_events` when the absolute difference exceeds `tolerance_abs_gbp` or the percentage
@@ -155,19 +188,23 @@ validate:
 ### T-DFM-021: Implement remaining validation rules
 
 owner: app-python
+story: US-2
 
-Implement `DATE_001` (stale report date, weekend-only), `VAL_001` (no cash and/or no stock at
-policy level), and `MAP_001` (unmapped bonds / residual cash proxy). Write all events to
-`validation_events` with correct `severity` and `status` per `rules_config.json`.
+Implement `DATE_001`, `VAL_001`, and `MAP_001` per `05_validations.md` (stale report date,
+weekend-only; no cash and/or no stock at policy level; unmapped bonds / residual cash proxy).
+Write all events to `validation_events` with correct `severity` and `status` per `rules_config.json`.
 
 acceptance:
 - `DATE_001` fires a `warning` when `report_date` is more than 5 days after month-end
+- `DATE_001` emits `not_evaluable` when `report_date` is null
 - `VAL_001` fires an `exception` for policies with both `total_cash_value_gbp = 0` and `total_bid_value_gbp = 0`
 - `MAP_001` classifies rows with missing `security_id` as residual cash if `bid_value_gbp < 1000`, else exception
 
 validate:
-- Introduce a row with `report_date` 10 days after month-end; confirm `DATE_001 warning` in `validation_events`
-- Confirm at least one `VAL_001` or `MAP_001` event for sample data (or confirm `not_evaluable` if no such case)
+- Introduce a row with `report_date` 10 days after month-end; confirm a `DATE_001` event with `status = warning` appears in `validation_events` for that row
+- Introduce a row with `report_date = null`; confirm a `DATE_001` event with `status = not_evaluable` appears in `validation_events`
+- Confirm at least one `VAL_001` event in `validation_events` for sample data (if no policy has both zero cash and zero bid value, confirm `not_evaluable`)
+- Confirm at least one `MAP_001` event in `validation_events` for sample data (introduce a row with null `security_id` and `bid_value_gbp >= 1000` to force an exception, or confirm residual cash flag for a row with `bid_value_gbp < 1000`)
 
 ---
 
@@ -176,6 +213,7 @@ validate:
 ### T-DFM-030: Compute policy_aggregates
 
 owner: app-python
+story: US-3
 
 Group `canonical_holdings` by `period`, `run_id`, `dfm_id`, `policy_id`. Compute
 `total_cash_value_gbp`, `total_bid_value_gbp`, `total_accrued_interest_gbp`. Write to
@@ -195,6 +233,7 @@ validate:
 ### T-DFM-031: Produce tpir_load_equivalent
 
 owner: app-python
+story: US-3
 
 Select and rename columns from `canonical_holdings` to match the tpir_load contract schema
 (as defined in `02_data_contracts.md`). Write to `tpir_load_equivalent` Delta table.
@@ -212,8 +251,10 @@ validate:
 ### T-DFM-032: Write Report 1 (per DFM) and Report 2 (roll-up)
 
 owner: app-python
+story: US-3
 
-Write Report 1 CSV per DFM to `/Files/output/period=YYYY-MM/run_id=<run_id>/report1_<dfm_id>.csv`
+Write Report 1 and Report 2 per the output format in `06_outputs_and_reports.md`. Write Report 1
+CSV per DFM to `/Files/output/period=YYYY-MM/run_id=<run_id>/report1_<dfm_id>.csv`
 containing validation failures grouped by policy and rule (including MV_001 numeric diffs and
 not_evaluable counts). Write Report 2 CSV roll-up with counts by DFM, rule, severity, and top
 policies by exception count.
@@ -233,10 +274,12 @@ validate:
 ### T-DFM-033: Write reconciliation summary and run audit log
 
 owner: app-python
+story: US-4
 
-After all DFMs complete: compute `reconciliation_summary.json` (totals by DFM for cash/bid/accrued
-from `policy_aggregates`, row counts by DFM). Update `run_audit_log` per DFM with
-`files_processed`, `rows_ingested`, `parse_errors_count`, `drift_events_count`, and `status`.
+After all DFMs complete: compute `reconciliation_summary.json` and update `run_audit_log` per
+`07_audit_and_recon.md`. Totals (cash/bid/accrued by DFM) sourced from `policy_aggregates`; row
+counts by DFM. Update `run_audit_log` per DFM with `files_processed`, `rows_ingested`,
+`parse_errors_count`, `drift_events_count`, and `status`.
 
 acceptance:
 - `reconciliation_summary.json` written to the run output folder with totals for all four DFMs

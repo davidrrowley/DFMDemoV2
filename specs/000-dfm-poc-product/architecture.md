@@ -104,7 +104,7 @@ All DFM notebooks import a shared Python module providing the following utilitie
 │   ├── raw_parsing_config.json  ← Per-DFM file discovery and column mapping config
 │   ├── rules_config.json        ← Validation rule thresholds and enable/disable flags
 │   ├── currency_mapping.json    ← Currency description → ISO code mapping
-│   └── fx_rates.json            ← FX rates for the period (GBP base)
+│   └── fx_rates.csv            ← FX rates for the period (GBP base)
 └── output/
     └── period=YYYY-MM/
         └── run_id=<run_id>/

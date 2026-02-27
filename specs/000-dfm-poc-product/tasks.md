@@ -4,6 +4,20 @@
 **Feature folder:** `specs/001-dfm-poc-ingestion/`
 **Owner:** `app-python`
 
+> **Task hierarchy note:** These are product-level milestone tasks (one task ≈ one pipeline phase).
+> Each T-PROD task is delivered by the feature-level implementation tasks in
+> `specs/001-dfm-poc-ingestion/tasks.md` (T-DFM-*). The two sets are complementary, not
+> alternatives: T-PROD tasks define acceptance milestones; T-DFM tasks define the implementation
+> steps that achieve them.
+>
+> | T-PROD (milestone) | Delivered by T-DFM (implementation tasks) |
+> |---|---|
+> | T-PROD-001 | T-DFM-001, T-DFM-002, T-DFM-003 |
+> | T-PROD-002 | T-DFM-010, T-DFM-011, T-DFM-012, T-DFM-013 |
+> | T-PROD-003 | T-DFM-020, T-DFM-021 |
+> | T-PROD-004 | T-DFM-030, T-DFM-031, T-DFM-032, T-DFM-033 |
+> | T-PROD-005 | E2E acceptance — all T-DFM tasks must pass |
+
 ---
 
 ## T-PROD-001: Foundation — Lakehouse, Delta Tables, Config, Entrypoint
@@ -12,7 +26,7 @@ owner: app-python
 
 Create the Fabric Lakehouse, all seven Delta tables with correct schemas, upload all config files
 to OneLake (`dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`,
-`currency_mapping.json`, `fx_rates.json`), build the `nb_run_all` entrypoint notebook with the
+`currency_mapping.json`, `fx_rates.csv`), build the `nb_run_all` entrypoint notebook with the
 DFM invocation loop and try/except fault isolation, and create the shared Python library with
 skeleton functions (`parse_numeric`, `parse_date`, `apply_fx`, `row_hash`, `emit_audit`,
 `emit_parse_error`, `emit_drift_event`, `emit_validation_event`).

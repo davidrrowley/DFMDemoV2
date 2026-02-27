@@ -30,7 +30,7 @@ recalculation, policy aggregation) must be human-reviewed for correctness and de
    `run_audit_log`, `schema_drift_events`, `parse_errors`.
 3. Upload config files to `/Files/config/`:
    `dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`,
-   `currency_mapping.json`, `fx_rates.json`.
+   `currency_mapping.json`, `fx_rates.csv`.
 4. Create `nb_run_all` entrypoint notebook with:
    - `period` parameter (YYYY-MM)
    - `run_id` generation (UTC timestamp)

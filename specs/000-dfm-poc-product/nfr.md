@@ -118,7 +118,7 @@ requires changes to shared code — breaking the isolation design principle.
 | `HOLDING_ASSUMED_ZERO` | `holding` was null; defaulted to 0 |
 | `DATE_INFERRED_FROM_FILENAME` | `report_date` was inferred from the source filename |
 | `DATE_MISSING` | `report_date` was null and could not be inferred |
-| `FX_RATE_DEFAULTED` | FX rate was not in `fx_rates.json`; used default (1.0 for GBP) |
+| `FX_RATE_DEFAULTED` | FX rate was not in `fx_rates.csv`; used default (1.0 for GBP) |
 | `BID_VALUE_NOT_COMPUTABLE` | `bid_value_gbp` could not be computed due to null inputs |
 | `CURRENCY_MAPPED_FROM_DESCRIPTION` | Currency was looked up via `currency_mapping.json` |
 
