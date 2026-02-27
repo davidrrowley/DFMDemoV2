@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Media Upload Session API
+  version: 1.0.0
+  description: |
+    Logical service contract for creating upload sessions and finalizing
+    metadata. If the client uses direct Azure SDK calls, these endpoints map
+    to the same operations and can be treated as optional.
+servers:
+  - url: https://api.example.com
+paths:
+  /upload-sessions:
+    post:
+      summary: Create an upload session
+      operationId: createUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadSessionRequest'
+      responses:
+        '201':
+          description: Upload session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSession'
+        '409':
+          description: Duplicate idempotency key
+  /upload-sessions/{sessionId}:
+    get:
+      summary: Get upload session status
+      operationId: getUploadSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current session state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSession'
+  /upload-sessions/{sessionId}/complete:
+    put:
+      summary: Finalize upload and write metadata
+      operationId: completeUploadSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteUploadSessionRequest'
+      responses:
+        '200':
+          description: Upload completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadSession'
+components:
+  schemas:
+    CreateUploadSessionRequest:
+      type: object
+      required:
+        - idempotencyKey
+        - deviceId
+        - contentType
+        - contentLength
+        - contentHash
+        - capturedAt
+      properties:
+        idempotencyKey:
+          type: string
+        deviceId:
+          type: string
+        contentType:
+          type: string
+        contentLength:
+          type: integer
+          format: int64
+        contentHash:
+          type: string
+        capturedAt:
+          type: string
+          format: date-time
+        originalFilename:
+          type: string
+    CompleteUploadSessionRequest:
+      type: object
+      required:
+        - blobUri
+        - blobETag
+      properties:
+        blobUri:
+          type: string
+        blobETag:
+          type: string
+    UploadSession:
+      type: object
+      required:
+        - sessionId
+        - status
+        - correlationId
+        - metadataId
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          enum: [pending, uploading, uploaded, failed]
+        correlationId:
+          type: string
+        metadataId:
+          type: string
+        blobName:
+          type: string
+        uploadUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time

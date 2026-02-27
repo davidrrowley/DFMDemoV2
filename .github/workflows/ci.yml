@@ -1,0 +1,26 @@
+﻿name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Baseline check (always passes)
+        run: |
+          echo "✓ Baseline CI check passed"
+          exit 0
+      
+      - name: Lint placeholder
+        run: |
+          echo "Replace this with your lint command (e.g., npm run lint, ruff check, etc.)"
+          exit 0
+      
+      - name: Test placeholder
+        run: |
+          echo "Replace this with your test command (e.g., npm test, pytest, go test, etc.)"
+          exit 0

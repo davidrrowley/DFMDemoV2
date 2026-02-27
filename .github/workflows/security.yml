@@ -1,0 +1,15 @@
+﻿name: Security
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 4"
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Security guidance
+        run: |
+          echo "Add security scans (SAST, dependency, and IaC) as needed."

@@ -1,0 +1,263 @@
+schema_version: "1.0"
+agents:
+  - id: orchestrator-pgm
+    display_name: "Orchestrator / Programme Manager"
+    stream: orchestration
+    mission: "Route work to specialists, enforce phase gates, cost ceilings, and quality bars."
+    triggers: ["New request", "Cross-stream dependency", "Plan/tasks triage"]
+    inputs: [".specify/memory/constitution.md", "specs/**/spec.md", "specs/**/plan.md", "specs/**/tasks.md", "AGENTS.md", "agents/routing.yml", "agents/registry/agents.v1.yml", "repo_status"]
+    outputs: ["agents/outputs/programme_status.md", "agents/outputs/delegated_tasks.yml", "agents/outputs/risks.md"]
+    tooling:
+      allow: ["read_repo", "issue_tracker_read", "ci_status_read", "spawn_agent"]
+      deny: ["write_repo", "merge_pr", "run_shell"]
+    guardrails:
+      - "Coordinate only by default. Do not implement unless break_glass=true."
+      - "Every delegated task includes acceptance criteria and validation steps."
+    escalation:
+      triggers: ["security-sensitive change", "two failed quality gates", "cross-stream conflict"]
+      to_agent: ["architecture", "appsec-tooling"]
+    cost_profile:
+      default_model: "cheap_router"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: speckit-requirements
+    display_name: "Spec Kit Requirements"
+    stream: orchestration
+    mission: "Draft and refine requirements into a coherent, testable spec."
+    triggers: ["Requirements unclear", "Acceptance criteria missing", "Spec churn"]
+    inputs: [".specify/memory/constitution.md", "stakeholder_notes.md", "constraints.md"]
+    outputs: ["specs/**/spec.md", "specs/**/open_questions.md"]
+    tooling:
+      allow: ["read_repo", "read_docs"]
+      deny: ["run_shell", "write_repo"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: architecture
+    display_name: "Architecture"
+    stream: app
+    mission: "Produce target architecture, trade-offs, and ADR candidates aligned to the spec."
+    triggers: ["Design phase", "Non-functional constraints", "Hard debugging requires redesign"]
+    inputs: ["specs/**/spec.md", ".specify/memory/constitution.md"]
+    outputs: ["docs/architecture/architecture.md", "docs/architecture/risks.md", "docs/adr/*.md"]
+    tooling:
+      allow: ["read_repo", "read_docs", "diagram_generate"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: adr-logger
+    display_name: "ADR Logger"
+    stream: quality
+    mission: "Create and maintain ADRs for decision traceability."
+    triggers: ["Decision made", "Architecture change", "Breaking change"]
+    inputs: ["docs/architecture/architecture.md", "specs/**/spec.md", "decision_candidate.md"]
+    outputs: ["docs/adr/NNNN-*.md", "docs/adr/index.md"]
+    tooling:
+      allow: ["read_repo", "write_docs"]
+      deny: ["deploy_prod"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: cloud-scrum-master
+    display_name: "Cloud Scrum Master"
+    stream: cloud
+    mission: "Manage cloud/platform workstream: backlog, dependencies, and delivery cadence."
+    triggers: ["Cloud tasks present", "Platform dependency", "IaC changes"]
+    inputs: ["specs/**/tasks.md", "docs/architecture/architecture.md", "AGENTS.md", "agents/routing.yml"]
+    outputs: ["agents/outputs/cloud_status.md", "agents/outputs/cloud_blockers.md"]
+    tooling:
+      allow: ["read_repo", "issue_tracker_read", "spawn_agent"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "cheap_router"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: app-scrum-master
+    display_name: "App Scrum Master"
+    stream: app
+    mission: "Manage application workstream: API/UI tasks, sequencing, and releases."
+    triggers: ["App tasks present", "Release planning", "Cross-component changes"]
+    inputs: ["specs/**/tasks.md", "docs/architecture/architecture.md", "AGENTS.md", "agents/routing.yml"]
+    outputs: ["agents/outputs/app_status.md", "agents/outputs/app_blockers.md"]
+    tooling:
+      allow: ["read_repo", "issue_tracker_read", "spawn_agent"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "cheap_router"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: security-scrum-master
+    display_name: "Security Scrum Master"
+    stream: security
+    mission: "Manage security workstream: threat modelling, scan gates, and approvals."
+    triggers: ["Security tasks present", "New integration", "Sensitive data"]
+    inputs: ["specs/**/tasks.md", "docs/architecture/architecture.md", "AGENTS.md", "agents/routing.yml"]
+    outputs: ["agents/outputs/security_status.md", "agents/outputs/security_blockers.md"]
+    tooling:
+      allow: ["read_repo", "issue_tracker_read", "spawn_agent"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "cheap_router"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: frontend-carbon
+    display_name: "Front-End (IBM Carbon)"
+    stream: app
+    mission: "Build UI using IBM Carbon (React) with accessibility and design-system compliance."
+    triggers: ["UI feature", "Carbon refactor", "Design tokens needed"]
+    inputs: ["specs/**/spec.md", "apps/web/**"]
+    outputs: ["pr_with_ui_changes", "agents/outputs/ui_notes.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "run_tests", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: ux-critic
+    display_name: "UX Critic"
+    stream: app
+    mission: "Review UX flows and accessibility; propose Carbon-aligned improvements."
+    triggers: ["Design review", "Before merging UI PR"]
+    inputs: ["ui_screenshots_or_storybook", "specs/**/spec.md"]
+    outputs: ["agents/outputs/ux_review.md", "agents/outputs/a11y_findings.md"]
+    tooling:
+      allow: ["read_repo", "read_docs"]
+      deny: ["write_repo"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: api-design
+    display_name: "API Design"
+    stream: app
+    mission: "Define APIs as contracts (OpenAPI) with versioning and compatibility rules."
+    triggers: ["New API", "Breaking change", "Integration work"]
+    inputs: ["specs/**/spec.md", "docs/architecture/architecture.md"]
+    outputs: ["apps/api/openapi.yaml", "docs/api/versioning.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "lint_openapi", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: threat-model
+    display_name: "Threat Modelling"
+    stream: security
+    mission: "Threat model key data flows and define mitigations with validation steps."
+    triggers: ["Design phase", "New data flow", "External integration"]
+    inputs: ["docs/architecture/architecture.md", "data_flows.md"]
+    outputs: ["docs/security/threat_model.md", "docs/security/mitigations.md"]
+    tooling:
+      allow: ["read_docs", "write_docs"]
+      deny: ["write_repo"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: appsec-tooling
+    display_name: "AppSec Tooling"
+    stream: security
+    mission: "Own security automation: scans, CI wiring, prompt evals."
+    triggers: ["Add security gates", "New language/tooling", "Agent regression"]
+    inputs: ["repo_tree", ".github/workflows/**"]
+    outputs: ["pr_with_security_pipeline_updates", "docs/security/scan_baseline.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "run_ci", "open_pr"]
+      deny: ["merge_pr", "disable_security_scans"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: windows-fluent
+    display_name: "Windows UI (Fluent)"
+    stream: app
+    mission: "Build Windows desktop UI using Fluent UI and native Windows patterns."
+    triggers: ["Windows UI", "Desktop UI", "Fluent UI"]
+    inputs: ["specs/**/spec.md", "apps/windows/**", "docs/standards/ui-platform-standards.md"]
+    outputs: ["pr_with_ui_changes", "agents/outputs/ui_notes.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "run_tests", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: android-material
+    display_name: "Android UI (Material 3)"
+    stream: app
+    mission: "Build Android UI using Material Design 3 and native Android patterns."
+    triggers: ["Android UI", "Mobile UI", "Material Design"]
+    inputs: ["specs/**/spec.md", "apps/android/**", "docs/standards/ui-platform-standards.md"]
+    outputs: ["pr_with_ui_changes", "agents/outputs/ui_notes.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "run_tests", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "balanced_reasoning"
+      escalate_model: "top_reasoning"
+      max_tokens_per_run: 24000
+      batching_allowed: false
+
+  - id: cicd-engineer
+    display_name: "CI/CD Engineer"
+    stream: quality
+    mission: "Maintain pipelines and developer experience; keep builds deterministic."
+    triggers: ["Pipeline changes", "New checks", "Release improvements"]
+    inputs: [".github/workflows/**", "docs/runbooks/ci-cd.md"]
+    outputs: ["pr_with_pipeline_changes", "agents/outputs/pipeline_notes.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "run_ci", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true
+
+  - id: repo-steward
+    display_name: "Repo Steward"
+    stream: quality
+    mission: "Maintain repo conventions: templates, ownership, and agent context artefacts."
+    triggers: ["Repo hygiene", "Template updates"]
+    inputs: ["repo_tree"]
+    outputs: [".github/*", "AGENTS.md", "CONTRIBUTING.md"]
+    tooling:
+      allow: ["read_repo", "write_repo", "open_pr"]
+      deny: ["merge_pr"]
+    cost_profile:
+      default_model: "cheap_text"
+      escalate_model: "balanced_reasoning"
+      max_tokens_per_run: 12000
+      batching_allowed: true

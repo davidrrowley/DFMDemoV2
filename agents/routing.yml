@@ -1,0 +1,29 @@
+schema_version: "1.0"
+
+defaults:
+  orchestration: orchestrator
+  app: app-typescript
+  cloud: azure-fullstack
+  data: app-python
+  ux: frontend-carbon
+  security: appsec-tooling
+  quality: cicd-engineer
+  platform: terraform-iac
+  devex: devex-tooling-scrum-master
+
+paths:
+  - match: "apps/web/**"
+    owner: frontend-carbon
+    reviewers: ["ux-critic"]
+  - match: "apps/api/**"
+    owner: app-typescript
+    reviewers: ["api-design"]
+  - match: "infra/**"
+    owner: terraform-iac
+    reviewers: ["cloud-scrum-master"]
+  - match: "docs/security/**"
+    owner: appsec-tooling
+    reviewers: ["threat-model"]
+  - match: "docs/adr/**"
+    owner: adr-logger
+    reviewers: ["architect"]

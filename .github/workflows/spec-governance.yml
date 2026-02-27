@@ -1,0 +1,26 @@
+name: Spec Governance
+
+on:
+  pull_request:
+    paths:
+      - "specs/**"
+      - "agents/**"
+      - ".specify/**"
+      - "scripts/spec_governance/**"
+      - ".github/workflows/spec-governance.yml"
+
+jobs:
+  spec-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run spec governance checks
+        run: |
+          python scripts/spec_governance/check_specs.py

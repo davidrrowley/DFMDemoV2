@@ -1,0 +1,40 @@
+﻿# General
+.DS_Store
+Thumbs.db
+*.log
+
+# Node
+node_modules/
+dist/
+build/
+.cache/
+.next/
+out/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env/
+
+# .NET
+bin/
+obj/
+
+# Java
+target/
+*.class
+
+# Go
+bin/
+pkg/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/

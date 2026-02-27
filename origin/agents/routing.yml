@@ -1,0 +1,65 @@
+schema_version: "1.0"
+# Routing rules help the Orchestrator and Scrum Master agents delegate work consistently.
+# These rules are intentionally simple and deterministic. Keep them up to date as the repo evolves.
+
+defaults:
+  # If a task in tasks.md has no explicit owner, the orchestrator will apply these rules.
+  fallback_owner: orchestrator
+  required_task_fields: ["owner", "acceptance", "validate"]
+
+rules:
+  - id: infra-changes
+    match:
+      path_glob: "infra/**"
+    owner: terraform-iac
+    reviewers: ["cloud-scrum-master", "security-scrum-master"]
+    notes:
+      - "Prefer Terraform unless the feature spec explicitly mandates Bicep/ARM."
+      - "Include cost controls and policy guardrails."
+
+  - id: github-workflows
+    match:
+      path_glob: ".github/workflows/**"
+    owner: cicd-engineer
+    reviewers: ["appsec-tooling", "repo-steward"]
+
+  - id: docs-architecture
+    match:
+      path_glob: "docs/architecture/**"
+    owner: architect
+    reviewers: ["adr-logger"]
+
+  - id: adrs
+    match:
+      path_glob: "docs/adr/**"
+    owner: adr-logger
+
+  - id: web-ui-carbon
+    match:
+      path_glob: "apps/web/**"
+    owner: frontend-carbon
+    reviewers: ["ux-critic", "qa-testing-scrum-master"]
+
+  - id: windows-ui-fluent
+    match:
+      path_glob: "apps/windows/**"
+    owner: windows-fluent
+    reviewers: ["ux-critic", "qa-testing-scrum-master"]
+
+  - id: android-ui-material
+    match:
+      path_glob: "apps/android/**"
+    owner: android-material
+    reviewers: ["ux-critic", "qa-testing-scrum-master"]
+
+  - id: api-node-typescript
+    match:
+      path_glob: "apps/api/**"
+    owner: app-typescript
+    reviewers: ["api-design", "security-scrum-master"]
+
+  - id: data-flows-or-sensitive
+    match:
+      spec_contains_any: ["PII", "personal data", "biometric", "voice recording", "camera", "encryption", "key vault"]
+    owner: threat-model
+    reviewers: ["appsec-tooling", "security-scrum-master"]

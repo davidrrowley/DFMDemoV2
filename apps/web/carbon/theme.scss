@@ -1,0 +1,7 @@
+﻿@use "@carbon/styles/scss/theme" as *;
+
+$carbon--theme: $g10;
+
+:root {
+	--app-radius: 6px;
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Registry Schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "agents"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "stream",
+          "mission"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9\\-]*$"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "stream": {
+            "type": "string"
+          },
+          "mission": {
+            "type": "string"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tooling": {
+            "type": "object"
+          },
+          "guardrails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "escalation": {
+            "type": "object"
+          },
+          "cost_profile": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

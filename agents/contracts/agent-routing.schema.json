@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Routing Rules Schema",
+  "type": "object",
+  "required": [
+    "rules"
+  ],
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "match",
+          "default_owner"
+        ],
+        "properties": {
+          "match": {
+            "type": "object"
+          },
+          "default_owner": {
+            "type": "string"
+          },
+          "reviewers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,98 @@
+# D = directory, F = file
+D .github/workflows
+D .github/ISSUE_TEMPLATE
+F .github/PULL_REQUEST_TEMPLATE.md
+F .github/dependabot.yml
+F .github/workflows/ci.yml
+F .github/workflows/security.yml
+F .github/workflows/codeql.yml
+F .github/workflows/release.yml
+
+D docs
+D docs/standards
+D docs/adr
+D docs/runbooks
+F docs/README.md
+F docs/onboarding.md
+F docs/standards/engineering-standards.md
+F docs/standards/ux-standards-carbon.md
+F docs/standards/security-baseline.md
+F docs/standards/accessibility.md
+F docs/adr/0000-template.md
+F docs/runbooks/local-dev.md
+F docs/runbooks/ci-cd.md
+F docs/runbooks/incident-basics.md
+
+F .specify/memory/constitution.md
+F plan.md
+F tasks.md
+
+D apps
+D apps/web
+D apps/web/src
+D apps/web/public
+D apps/web/carbon
+D apps/web/carbon/fonts
+D apps/web/carbon/layout
+F apps/web/README.md
+F apps/web/carbon/theme.scss
+F apps/web/carbon/fonts/README.md
+
+D apps/api
+D apps/api/src
+F apps/api/README.md
+
+D packages
+D packages/ui-carbon
+D packages/ui-carbon/src
+F packages/ui-carbon/README.md
+
+D agents
+D agents/prompts
+D agents/prompts/architect
+D agents/skills
+D agents/policies
+D agents/tools
+D agents/evals
+F agents/README.md
+F agents/prompts/architect/system.md
+F agents/skills/README.md
+F agents/policies/guardrails.md
+
+D infra
+D infra/local
+F infra/local/docker-compose.yml
+F infra/README.md
+
+F .gitignore
+F .editorconfig
+F .prettierrc
+F tsconfig.base.json
+F eslint.config.js
+F justfile
+F README.md
+F .env.example
+F LICENSE
+
+# Spec-kit (.specify) assets
+
+D .specify
+D .specify/memory
+D .specify/scripts
+D .specify/scripts/powershell
+D .specify/templates
+D specs
+F specs/.gitkeep
+F .specify/README.md
+F .specify/memory/constitution.md
+F .specify/scripts/powershell/check-prerequisites.ps1
+F .specify/scripts/powershell/common.ps1
+F .specify/scripts/powershell/create-new-feature.ps1
+F .specify/scripts/powershell/setup-plan.ps1
+F .specify/scripts/powershell/update-agent-context.ps1
+F .specify/templates/agent-file-template.md
+F .specify/templates/checklist-template.md
+F .specify/templates/constitution-template.md
+F .specify/templates/plan-template.md
+F .specify/templates/spec-template.md
+F .specify/templates/tasks-template.md
