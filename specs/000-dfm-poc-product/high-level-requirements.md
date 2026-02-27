@@ -24,7 +24,7 @@ The platform must ingest holdings data from all four DFMs for a given period.
 The platform must normalise all ingested data into the canonical `canonical_holdings` schema.
 
 - **HR-02.1 Canonical schema:** All DFM data must be mapped to the `canonical_holdings` schema as defined in `data-model.md`, regardless of source format differences.
-- **HR-02.2 GBP conversion:** All monetary values must be converted to GBP equivalents using FX rates from `fx_rates.json`. Rows with non-GBP currency must have a valid `fx_rate`.
+- **HR-02.2 GBP conversion:** All monetary values must be converted to GBP equivalents using FX rates from `fx_rates.csv`. Rows with non-GBP currency must have a valid `fx_rate`.
 - **HR-02.3 Numeric convention support:** The parser must handle both UK/US decimal conventions (e.g., `13,059.70`) and European decimal conventions (e.g., `3.479,29`) via the `parse_numeric(value, european=False)` function.
 - **HR-02.4 Date parsing:** The system must parse dates in dd-MMM-yyyy, dd/MM/yyyy, ISO datetime, and filename-inferred formats via the `parse_date(value)` function.
 - **HR-02.5 Row-hash de-duplication:** Each row must have a deterministic `row_hash` computed over a stable column set. MERGE upsert must use `row_hash` to prevent duplicate rows when re-running the same period.

@@ -56,7 +56,7 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Constraint | Value |
 |---|---|
-| Time budget | 2 evenings maximum |
+| Time budget | 2 evenings maximum (~7 hours total; see `roadmap.md` for phase breakdown) |
 | Platform | Microsoft Fabric (PySpark notebooks + Delta Lake) |
 | Development approach | AI-assisted (GitHub Copilot); finance calculations human-reviewed |
 | Finance calculation determinism | Must be deterministic; no AI-generated arithmetic in production paths |

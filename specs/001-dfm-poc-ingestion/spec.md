@@ -15,6 +15,8 @@ As an investment operations analyst, I can run a period ingestion for all four D
 
 **Independent Test**: Can be fully tested by placing sample input files in the landing zone for a test period and running `nb_run_all` — no downstream notebooks required.
 
+**Tasks**: T-DFM-001, T-DFM-002, T-DFM-003, T-DFM-010, T-DFM-011, T-DFM-012, T-DFM-013
+
 **Acceptance Scenarios**:
 
 1. **Given** input files are present in `/Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/` for all four DFMs, **When** `nb_run_all` is executed with parameter `period=YYYY-MM`, **Then** `canonical_holdings` contains rows for all four DFMs with correct schema and non-zero row counts.
@@ -29,6 +31,8 @@ As an analyst, I can see validation results (MV checks, stale date warnings) for
 **Why this priority**: Validation is the core analytical value of the PoC; without it the ingestion is just an ETL exercise.
 
 **Independent Test**: Can be fully tested by querying `validation_events` after Story 1 data is in `canonical_holdings`, without running any report notebooks.
+
+**Tasks**: T-DFM-020, T-DFM-021
 
 **Acceptance Scenarios**:
 
@@ -46,6 +50,8 @@ As an analyst, I can download Report 1 per DFM and a Report 2 roll-up so that I 
 
 **Independent Test**: Can be fully tested by running `nb_reports` after Stories 1 and 2 are complete and checking the OneLake output folder.
 
+**Tasks**: T-DFM-030, T-DFM-031, T-DFM-032
+
 **Acceptance Scenarios**:
 
 1. **Given** a complete run (ingestion + validation), **When** `nb_reports` executes, **Then** exactly four Report 1 CSV files (`report1_brown_shipley.csv`, `report1_wh_ireland.csv`, `report1_pershing.csv`, `report1_castlebay.csv`) appear in `/Files/output/period=YYYY-MM/run_id=<run_id>/`.
@@ -60,6 +66,8 @@ As an analyst, I can see the run audit log and reconciliation summary to underst
 **Why this priority**: Auditability and data completeness assurance; verifies the pipeline ran as expected.
 
 **Independent Test**: Can be fully tested by querying `run_audit_log` and reading `reconciliation_summary.json` after any complete run.
+
+**Tasks**: T-DFM-033
 
 **Acceptance Scenarios**:
 
