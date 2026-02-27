@@ -3,7 +3,7 @@
 > **Scope:** Product-level vision for the DFM PoC Ingestion Platform.
 > This defines the problem space, target users, and desired outcomes for the entire platform.
 > The DFM ingestion pipeline feature is sequenced in `roadmap.md` and detailed in
-> `specs/002-dfm-poc-ingestion/`.
+> `specs/001-dfm-poc-ingestion/`.
 
 ## Context
 
@@ -133,4 +133,4 @@ A PoC run is successful when:
 - [feature-map.md](feature-map.md) — Feature boundaries and ownership
 - [roadmap.md](roadmap.md) — Phase sequencing and delivery timeline
 - [architecture.md](architecture.md) — System boundaries and key components
-- [specs/002-dfm-poc-ingestion/](../002-dfm-poc-ingestion/) — Feature-level spec for the ingestion pipeline
+- [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) — Feature-level spec for the ingestion pipeline

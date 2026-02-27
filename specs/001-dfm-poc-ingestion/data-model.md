@@ -1,7 +1,7 @@
 # Data Model: DFM PoC — Ingestion Pipeline
 
 > **Note:** This feature implements the canonical data model defined at the product level.
-> See [specs/003-dfm-poc-product/data-model.md](../003-dfm-poc-product/data-model.md) for the authoritative entity definitions, column-level schemas, and entity relationships.
+> See [specs/000-dfm-poc-product/data-model.md](../000-dfm-poc-product/data-model.md) for the authoritative entity definitions, column-level schemas, and entity relationships.
 
 This document covers feature-specific implementation notes: PySpark DDL, state machines, and ingestion-specific column behaviour that supplements the product-level schema.
 
@@ -193,7 +193,7 @@ run_audit_log_schema = StructType([
 
 ## See Also
 
-- [Product Data Model](../003-dfm-poc-product/data-model.md) — Authoritative entity definitions and relationships
+- [Product Data Model](../000-dfm-poc-product/data-model.md) — Authoritative entity definitions and relationships
 - [02_data_contracts.md](02_data_contracts.md) — Supplementary schema reference
 - [spec.md](spec.md) — Feature requirements and acceptance criteria
 - [research.md](research.md) — Per-DFM mapping decisions and framework choices

@@ -1,8 +1,8 @@
 # DFM PoC Ingestion — Product Spec
 
 **Product:** DFM PoC Ingestion Platform  
-**Product folder:** `specs/003-dfm-poc-product/`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Product folder:** `specs/000-dfm-poc-product/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Status:** Draft  
 **Owner:** `app-python`
 
@@ -77,10 +77,10 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Feature | Description | Owner | Spec |
 |---|---|---|---|
-| F01 — DFM Ingestion Pipeline | File discovery, parsing, normalisation, GBP conversion, de-duplication → `canonical_holdings` | `app-python` | `specs/002-dfm-poc-ingestion/` |
-| F02 — Validation Engine | DATE_001, MV_001, VAL_001, MAP_001 → `validation_events` | `app-python` | `specs/002-dfm-poc-ingestion/05_validations.md` |
-| F03 — Aggregation & Output | `policy_aggregates`, `tpir_load_equivalent`, Report 1, Report 2, recon summary | `app-python` | `specs/002-dfm-poc-ingestion/06_outputs_and_reports.md` |
-| F04 — Audit & Governance | `run_audit_log`, `parse_errors`, `schema_drift_events` | `app-python` | `specs/002-dfm-poc-ingestion/07_audit_and_recon.md` |
+| F01 — DFM Ingestion Pipeline | File discovery, parsing, normalisation, GBP conversion, de-duplication → `canonical_holdings` | `app-python` | `specs/001-dfm-poc-ingestion/` |
+| F02 — Validation Engine | DATE_001, MV_001, VAL_001, MAP_001 → `validation_events` | `app-python` | `specs/001-dfm-poc-ingestion/05_validations.md` |
+| F03 — Aggregation & Output | `policy_aggregates`, `tpir_load_equivalent`, Report 1, Report 2, recon summary | `app-python` | `specs/001-dfm-poc-ingestion/06_outputs_and_reports.md` |
+| F04 — Audit & Governance | `run_audit_log`, `parse_errors`, `schema_drift_events` | `app-python` | `specs/001-dfm-poc-ingestion/07_audit_and_recon.md` |
 
 ---
 
@@ -119,4 +119,4 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Folder | Description |
 |---|---|
-| [specs/002-dfm-poc-ingestion/](../002-dfm-poc-ingestion/) | All four feature specs, DFM mappings, config definitions |
+| [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) | All four feature specs, DFM mappings, config definitions |

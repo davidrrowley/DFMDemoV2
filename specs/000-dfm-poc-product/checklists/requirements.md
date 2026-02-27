@@ -2,8 +2,8 @@
 
 **Purpose:** Validate that the product-level specification is complete and of sufficient quality
 before proceeding to implementation.  
-**Product folder:** `specs/003-dfm-poc-product/`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`
+**Product folder:** `specs/000-dfm-poc-product/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`
 
 ---
 
@@ -69,11 +69,11 @@ before proceeding to implementation.
 
 ## Cross-Reference Integrity
 
-- [x] `spec.md` links to all product documents and to `specs/002-dfm-poc-ingestion/`
-- [x] `feature-map.md` links to `specs/002-dfm-poc-ingestion/` as the feature folder
-- [x] `architecture.md` references `specs/002-dfm-poc-ingestion/01_architecture.md` for detail
-- [x] `data-model.md` references `specs/002-dfm-poc-ingestion/02_data_contracts.md`
-- [x] `high-level-requirements.md` references `specs/002-dfm-poc-ingestion/05_validations.md`
+- [x] `spec.md` links to all product documents and to `specs/001-dfm-poc-ingestion/`
+- [x] `feature-map.md` links to `specs/001-dfm-poc-ingestion/` as the feature folder
+- [x] `architecture.md` references `specs/001-dfm-poc-ingestion/01_architecture.md` for detail
+- [x] `data-model.md` references `specs/001-dfm-poc-ingestion/02_data_contracts.md`
+- [x] `high-level-requirements.md` references `specs/001-dfm-poc-ingestion/05_validations.md`
 - [x] `tasks.md` T-PROD-005 references `quickstart.md` and `spec.md` success criteria
 
 ---
@@ -82,5 +82,5 @@ before proceeding to implementation.
 
 - All checks passed for the initial draft.
 - Re-run this checklist after any significant change to requirements or architecture.
-- DFM source column mapping details live in `specs/002-dfm-poc-ingestion/10_dfm_*.md` files
+- DFM source column mapping details live in `specs/001-dfm-poc-ingestion/10_dfm_*.md` files
   (Brown Shipley, WH Ireland, Pershing, Castlebay). These are not duplicated at product level.

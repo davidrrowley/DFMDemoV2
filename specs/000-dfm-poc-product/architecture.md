@@ -1,7 +1,7 @@
 # Architecture: DFM PoC Ingestion Platform
 
 > **Scope:** System boundaries, key components, logical pipeline, and design principles.
-> Individual feature specs (specs/002-dfm-poc-ingestion/) detail notebook behaviour and DFM mappings.
+> Individual feature specs (specs/001-dfm-poc-ingestion/) detail notebook behaviour and DFM mappings.
 
 ## Logical Pipeline
 
@@ -179,4 +179,4 @@ parameterised in `rules_config.json`. Individual rules can be enabled/disabled w
 - [product-vision.md](product-vision.md) — Problem space and target outcomes
 - [high-level-requirements.md](high-level-requirements.md) — Functional and NFR
 - [security-baseline.md](security-baseline.md) — Security requirements and controls
-- [specs/002-dfm-poc-ingestion/01_architecture.md](../002-dfm-poc-ingestion/01_architecture.md) — Feature-level architecture detail
+- [specs/001-dfm-poc-ingestion/01_architecture.md](../001-dfm-poc-ingestion/01_architecture.md) — Feature-level architecture detail

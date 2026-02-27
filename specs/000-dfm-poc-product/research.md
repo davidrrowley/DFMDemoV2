@@ -174,4 +174,4 @@ in isolation.
 
 - [architecture.md](architecture.md) — How these decisions are reflected in the system design
 - [nfr.md](nfr.md) — NFR-01 (determinism), NFR-04 (idempotency), NFR-05 (config portability)
-- [specs/002-dfm-poc-ingestion/01_architecture.md](../002-dfm-poc-ingestion/01_architecture.md) — Feature-level architecture referencing these decisions
+- [specs/001-dfm-poc-ingestion/01_architecture.md](../001-dfm-poc-ingestion/01_architecture.md) — Feature-level architecture referencing these decisions
