@@ -1,0 +1,104 @@
+{
+  "brown_shipley": {
+    "file_type": "csv",
+    "roles": ["positions", "cash"],
+    "header_detection": true,
+    "european_decimals": true,
+    "role_filename_patterns": {
+      "positions": ["Notification.csv"],
+      "cash": ["Notification - Cash.csv"]
+    },
+    "column_mapping": {
+      "positions": {
+        "policy_id": "Client ID",
+        "report_date": "Value Date",
+        "security_id": "ISIN",
+        "bid_value_local": "Balance",
+        "accrued_interest_local": "Accrued Interest"
+      },
+      "cash": {
+        "policy_id": "Client ID",
+        "cash_value_local": "Accounting Balance"
+      }
+    }
+  },
+  "wh_ireland": {
+    "file_type": "xlsx",
+    "roles": ["positions"],
+    "sheet_required_columns": [
+      "Position as of Date",
+      "Account Number",
+      "ISIN",
+      "Settled Market Value (PC)",
+      "Position Currency"
+    ],
+    "column_mapping": {
+      "positions": {
+        "policy_id": "Account Number",
+        "isin": "ISIN",
+        "holding": "Settled Quantity",
+        "local_bid_price": "Display Price",
+        "bid_value_local": "Settled Market Value (PC)",
+        "local_currency": "Position Currency",
+        "report_date": "Position as of Date",
+        "bid_value_abc": "Settled Market Value (ABC)",
+        "account_base_currency": "Account Base Currency",
+        "fx_rate_col": "Position to Account Exchange Rate"
+      }
+    }
+  },
+  "pershing": {
+    "file_type": "csv",
+    "roles": ["positions_credo", "valuation_native"],
+    "role_filename_patterns": {
+      "positions_credo": ["Positions.csv"],
+      "valuation_native": ["PSL_Valuation_Holdings_*.csv"]
+    },
+    "column_mapping": {
+      "positions_credo": {
+        "policy_id": "AccountNumber",
+        "policy_id_fallback": "PortfolioNumber",
+        "report_date": "ReportDate",
+        "report_date_fallback": "PositionDate",
+        "isin": "ISIN",
+        "holding": "Quantity",
+        "local_bid_price": "Price",
+        "local_currency": "LocalCurrencyISO",
+        "bid_value_local": "MarketValue",
+        "bid_value_reporting": "ReportingMarketValue",
+        "bid_value_reporting_iso": "ReportingMarketValueISO",
+        "fx_rate_col": "FXRate"
+      },
+      "valuation_native": {
+        "policy_id": "PSLAccountReference",
+        "report_date": "ValueDate",
+        "holding": "Holding",
+        "local_bid_price": "Price",
+        "bid_value_local": "Value",
+        "local_currency": "CCYOfTheAsset",
+        "accrued_interest_local": "AccruedInterest"
+      }
+    }
+  },
+  "castlebay": {
+    "file_type": "xlsx",
+    "roles": ["positions"],
+    "sheets": {
+      "include_name_contains_any": ["customer 1", "customer 2"],
+      "header_row_index_1based": 3
+    },
+    "report_date_from_filename": true,
+    "column_mapping": {
+      "positions": {
+        "policy_id": "Account Name",
+        "isin": "ISIN Code",
+        "sedol": "SEDOL",
+        "holding": "Quantity Held",
+        "local_bid_price": "Price in Stock Currency",
+        "bid_value_local": "Value in Market",
+        "currency_description": "Currency Description",
+        "acq_cost": "Acquisition Cost"
+      }
+    }
+  }
+}
