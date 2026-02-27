@@ -103,7 +103,7 @@ agents, skills, and tools in this repository.
 - Security-sensitive changes (new data flows, auth changes, secret handling, IaC
   affecting network or IAM) MUST receive human review and include a rollback plan
   before merging.
-- The threat model in `specs/000-product-name-here/security-baseline.md` MUST be
+- The threat model in `specs/000-dfm-poc-product/security-baseline.md` MUST be
   updated when new data flows are introduced.
 
 **Rationale**: Autonomous agents executing at speed amplify the blast radius of
