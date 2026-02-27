@@ -1,7 +1,7 @@
 # Tasks: DFM PoC Ingestion Platform
 
-**Product folder:** `specs/003-dfm-poc-product/`
-**Feature folder:** `specs/002-dfm-poc-ingestion/`
+**Product folder:** `specs/000-dfm-poc-product/`
+**Feature folder:** `specs/001-dfm-poc-ingestion/`
 **Owner:** `app-python`
 
 ---

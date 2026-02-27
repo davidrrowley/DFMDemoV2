@@ -1,6 +1,6 @@
 # Implementation Plan: DFM PoC — Ingestion Pipeline
 
-**Branch**: `002-dfm-poc-ingestion` | **Date**: 2025-12-31 | **Spec**: [specs/002-dfm-poc-ingestion/spec.md](spec.md)
+**Branch**: `001-dfm-poc-ingestion` | **Date**: 2025-12-31 | **Spec**: [specs/001-dfm-poc-ingestion/spec.md](spec.md)
 
 ## Summary
 
@@ -37,7 +37,7 @@ Deliver a Microsoft Fabric Lakehouse pipeline (PySpark notebooks + Delta Lake) t
 ### Documentation (this feature)
 
 ```text
-specs/002-dfm-poc-ingestion/
+specs/001-dfm-poc-ingestion/
 ├── spec.md               # Feature requirements and user stories
 ├── plan.md               # This file
 ├── tasks.md              # Task blocks with owner/acceptance/validate

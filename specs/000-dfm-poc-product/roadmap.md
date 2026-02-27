@@ -169,4 +169,4 @@ passes baseline acceptance criteria, and all governance tables are populated.
 - [feature-map.md](feature-map.md) — Feature ownership and boundaries
 - [tasks.md](tasks.md) — Task-level breakdown with owner, acceptance, and validate
 - [architecture.md](architecture.md) — Notebook structure and pipeline
-- [specs/002-dfm-poc-ingestion/plan.md](../002-dfm-poc-ingestion/plan.md) — Feature-level implementation plan
+- [specs/001-dfm-poc-ingestion/plan.md](../001-dfm-poc-ingestion/plan.md) — Feature-level implementation plan

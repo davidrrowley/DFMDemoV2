@@ -7,7 +7,7 @@
 
 1. Each feature corresponds to a coherent capability boundary in the pipeline.
 2. Feature boundaries are defined explicitly to prevent cross-contamination of DFM-specific logic.
-3. The feature folder `specs/002-dfm-poc-ingestion/` contains the detailed spec, plan, and tasks
+3. The feature folder `specs/001-dfm-poc-ingestion/` contains the detailed spec, plan, and tasks
    for all four features in this PoC — they are co-located because they share a common pipeline.
 
 ---
@@ -30,7 +30,7 @@
 
 **Satisfies:** HR-01, HR-02, HR-07, HR-08.3, HR-08.4  
 **Default owner:** `app-python`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Notebooks:** `nb_ingest_brown_shipley`, `nb_ingest_wh_ireland`, `nb_ingest_pershing`, `nb_ingest_castlebay`, `nb_run_all`
 
 **Scope boundary:**
@@ -56,7 +56,7 @@
 
 **Satisfies:** HR-03, HR-08.1, HR-08.2  
 **Default owner:** `app-python`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Notebooks:** `nb_validate`  
 **Config:** `rules_config.json`
 
@@ -81,7 +81,7 @@ reconciliation summary.
 
 **Satisfies:** HR-04, HR-05, HR-09.1, HR-09.4  
 **Default owner:** `app-python`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Notebooks:** `nb_aggregate`, `nb_reports`
 
 **Scope boundary:**
@@ -104,7 +104,7 @@ reconciliation summary.
 
 **Satisfies:** HR-06, HR-09.3  
 **Default owner:** `app-python`  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Notebooks:** Written by DFM ingestion notebooks and finalised by `nb_run_all`
 
 **Scope boundary:**
@@ -165,4 +165,4 @@ Features must be delivered in this order within each phase:
 - [high-level-requirements.md](high-level-requirements.md) — Full requirement definitions
 - [roadmap.md](roadmap.md) — Phase-by-phase sequencing
 - [architecture.md](architecture.md) — System design and notebook structure
-- [specs/002-dfm-poc-ingestion/](../002-dfm-poc-ingestion/) — Feature-level specs, plan, and tasks
+- [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) — Feature-level specs, plan, and tasks

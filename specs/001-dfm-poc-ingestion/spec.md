@@ -1,6 +1,6 @@
 # Feature Specification: DFM PoC — Ingestion Pipeline
 
-**Feature Branch**: `002-dfm-poc-ingestion`
+**Feature Branch**: `001-dfm-poc-ingestion`
 **Created**: 2025-12-31
 **Status**: Draft
 **Input**: DFM source files in multiple formats (CSV, XLSX) from four fund managers: Brown Shipley, WH Ireland, Pershing, and Castlebay.

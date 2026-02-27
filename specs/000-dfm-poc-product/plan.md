@@ -1,7 +1,7 @@
 # Implementation Plan: DFM PoC Ingestion Platform
 
 **Product:** DFM PoC Ingestion Platform  
-**Feature folder:** `specs/002-dfm-poc-ingestion/`  
+**Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Owner:** `app-python`
 
 ---
@@ -131,4 +131,4 @@ WH Ireland, Pershing, and Castlebay.
 - [roadmap.md](roadmap.md) — Phase timing and completion milestones
 - [tasks.md](tasks.md) — Task-level breakdown with acceptance criteria
 - [architecture.md](architecture.md) — Notebook structure and folder layout
-- [specs/002-dfm-poc-ingestion/plan.md](../002-dfm-poc-ingestion/plan.md) — Feature-level plan detail
+- [specs/001-dfm-poc-ingestion/plan.md](../001-dfm-poc-ingestion/plan.md) — Feature-level plan detail

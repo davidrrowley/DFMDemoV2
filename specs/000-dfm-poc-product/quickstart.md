@@ -174,4 +174,4 @@ giving a full history of runs for the period.
 - [spec.md](spec.md) — Product overview and success criteria
 - [architecture.md](architecture.md) — Pipeline structure and notebook descriptions
 - [security-baseline.md](security-baseline.md) — Data handling requirements for analysts
-- [specs/002-dfm-poc-ingestion/](../002-dfm-poc-ingestion/) — Feature-level specs and DFM mappings
+- [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) — Feature-level specs and DFM mappings

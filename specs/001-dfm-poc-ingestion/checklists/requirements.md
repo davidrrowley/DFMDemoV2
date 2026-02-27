@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-12-31
-**Feature**: [specs/002-dfm-poc-ingestion/spec.md](../spec.md)
+**Feature**: [specs/001-dfm-poc-ingestion/spec.md](../spec.md)
 
 ---
 

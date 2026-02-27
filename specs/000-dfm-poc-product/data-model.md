@@ -224,4 +224,4 @@ Every row in every table carries `run_id` and `dfm_id`, enabling full cross-tabl
 
 - [architecture.md](architecture.md) — How tables are produced in the pipeline
 - [high-level-requirements.md](high-level-requirements.md) — HR-02, HR-03, HR-04, HR-06
-- [specs/002-dfm-poc-ingestion/02_data_contracts.md](../002-dfm-poc-ingestion/02_data_contracts.md) — Feature-level schema detail
+- [specs/001-dfm-poc-ingestion/02_data_contracts.md](../001-dfm-poc-ingestion/02_data_contracts.md) — Feature-level schema detail

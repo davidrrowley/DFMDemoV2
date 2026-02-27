@@ -1,6 +1,6 @@
 # Tasks: DFM PoC Ingestion
 
-**Input**: Spec and plan from `specs/002-dfm-poc-ingestion/`
+**Input**: Spec and plan from `specs/001-dfm-poc-ingestion/`
 **Platform**: Microsoft Fabric — PySpark notebooks, Delta Lake, OneLake
 
 ---

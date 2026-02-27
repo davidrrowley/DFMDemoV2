@@ -133,4 +133,4 @@ All requirements are owned by `app-python`.
 - [feature-map.md](feature-map.md) — Requirements mapped to features
 - [nfr.md](nfr.md) — Non-functional requirements detail
 - [data-model.md](data-model.md) — Entity and schema definitions
-- [specs/002-dfm-poc-ingestion/05_validations.md](../002-dfm-poc-ingestion/05_validations.md) — Validation rule detail
+- [specs/001-dfm-poc-ingestion/05_validations.md](../001-dfm-poc-ingestion/05_validations.md) — Validation rule detail

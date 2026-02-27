@@ -5,7 +5,7 @@
 - Access to a Microsoft Fabric workspace with Lakehouse permissions (read + write).
 - Access to OneLake Files for the target Lakehouse (to upload config and landing files).
 - The four DFM source files for the period you want to run (see **Landing Zone** section).
-- Config files from `specs/002-dfm-poc-ingestion/config/` uploaded to OneLake.
+- Config files from `specs/001-dfm-poc-ingestion/config/` uploaded to OneLake.
 
 ---
 
@@ -13,7 +13,7 @@
 
 ### 1. Upload config files
 
-Copy all files from `specs/002-dfm-poc-ingestion/config/` to `/Files/config/` in your Fabric Lakehouse:
+Copy all files from `specs/001-dfm-poc-ingestion/config/` to `/Files/config/` in your Fabric Lakehouse:
 
 ```
 /Files/config/dfm_registry.json
