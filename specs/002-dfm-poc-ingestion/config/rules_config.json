@@ -1,0 +1,44 @@
+{
+  "rules": [
+    {
+      "rule_id": "DATE_001",
+      "description": "Report date within 5 working days of month end",
+      "severity": "warning",
+      "enabled": true,
+      "parameters": {
+        "max_working_days": 5
+      }
+    },
+    {
+      "rule_id": "MV_001",
+      "description": "Holdings * Price * FX equals Bid Value (within tolerance)",
+      "severity": "exception",
+      "enabled": true,
+      "parameters": {
+        "tolerance_abs_gbp": 1.0,
+        "tolerance_pct": 0.001
+      }
+    },
+    {
+      "rule_id": "VAL_001",
+      "description": "No cash and/or no stock value at policy level",
+      "severity": "exception",
+      "enabled": true
+    },
+    {
+      "rule_id": "POP_001",
+      "description": "Policy maps to IH policy id",
+      "severity": "exception",
+      "enabled": false
+    },
+    {
+      "rule_id": "MAP_001",
+      "description": "Unmapped bonds; treat < £1k as residual cash (proxy)",
+      "severity": "exception",
+      "enabled": true,
+      "parameters": {
+        "residual_cash_threshold_gbp": 1000.0
+      }
+    }
+  ]
+}
