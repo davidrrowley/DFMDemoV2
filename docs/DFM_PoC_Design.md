@@ -1,9 +1,11 @@
 # DFM PoC Design Document
 
-**Version:** 1.0  
-**Date:** 2026-02-27  
+**Version:** 1.1  
+**Date:** 2026-03-01  
 **Status:** Draft  
 **Owner:** Investment Operations Technology
+
+> **Change log (v1.1):** Updated to reflect gap-closure work completed 2026-03-01. Additions: TPIR Upload Checker (`nb_tpir_check`), ADS loading (`nb_ads_load`), three new config inputs (`security_master.csv`, `policy_mapping.csv`, `ads_config.json`), corrected MV_001 tolerance (±2%), POP_001 enabled by default, extended pipeline diagram, updated audit log fields, Phase 8 in roadmap, SC-11/SC-12 in acceptance checklist.
 
 ---
 
@@ -144,7 +146,10 @@ Azure Databricks, or Azure Synapse instance is required.
 │   ├── raw_parsing_config.json  ← Per-DFM file patterns, column mappings, numeric conventions
 │   ├── rules_config.json        ← Validation rule thresholds and enable/disable flags
 │   ├── currency_mapping.json    ← Currency description → ISO code mapping
-│   └── fx_rates.csv             ← FX rates for the period (GBP base)
+│   ├── fx_rates.csv             ← FX rates for the period (GBP base); uploaded monthly
+│   ├── security_master.csv      ← ISIN/SEDOL → canonical asset name lookup; uploaded monthly
+│   ├── policy_mapping.csv       ← DFM policy ref → IH/Spice policy ref; uploaded monthly
+│   └── ads_config.json          ← ADS REST API base URL and batch settings; env-specific
 └── output/
     └── period=YYYY-MM/
         └── run_id=<run_id>/
@@ -153,7 +158,8 @@ Azure Databricks, or Azure Synapse instance is required.
             ├── report1_pershing.csv
             ├── report1_castlebay.csv
             ├── report2_rollup.csv
-            └── reconciliation_summary.json
+            ├── reconciliation_summary.json
+            └── tpir_check_result.json   ← TPIR Upload Check pass/fail result
 ```
 
 ### 3.4 Well-Architected: Infrastructure Design Decisions
@@ -300,7 +306,23 @@ The pipeline is triggered by running the `nb_run_all` notebook with a `period` p
                             │
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│  6. Finalise run_audit_log for all DFMs                                │
+│  6. nb_tpir_check                                                       │
+│     Reads tpir_load_equivalent for current run_id                     │
+│     Evaluates 7 quality rules (TC-001 to TC-007)                      │
+│     Writes tpir_check_result.json (status: passed | failed)           │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │  [if status = passed]
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  7. nb_ads_load                                                         │
+│     Batches tpir_load_equivalent rows → POST /api/v1/tpir/load        │
+│     Polls for committed status; updates run_audit_log                 │
+│     (Suppressed if TPIR check status = failed)                        │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  8. Finalise run_audit_log for all DFMs                                │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -375,8 +397,14 @@ from:
 - **`raw_parsing_config.json`** controls all per-DFM parsing: header rows, sheet names, column
   mappings, numeric conventions, and date formats.
 - **`rules_config.json`** controls validation thresholds and which rules are active.
+- **`security_master.csv`** provides the ISIN/SEDOL → asset name lookup used to enrich
+  `security_id` before `MAP_001` is evaluated. Uploaded by the analyst monthly.
+- **`policy_mapping.csv`** maps DFM policy references to IH/Spice policy references, enabling
+  `POP_001` to flag unmapped or terminated policies. Uploaded monthly from Spice.
+- **`ads_config.json`** provides the ADS REST API base URL and batch settings; environment-specific
+  (staging vs production), not committed to source control.
 - Adding a fifth DFM requires only a new config block and a new ingestion notebook — no changes
-  to validation, aggregation, or reporting code.
+  to validation, aggregation, reporting, or ADS load code.
 
 ### 5.7 Fault Tolerance
 
@@ -408,7 +436,7 @@ recorded in the `validation_events` Delta table. There are no silent outcomes.
 | **MV_001** | Market value recalculation. Computes `holding × local_bid_price × fx_rate` and compares to `bid_value_gbp`. Fails if the absolute or percentage difference exceeds configured thresholds. Details include `computed_mv`, `reported_mv`, `abs_diff`, `pct_diff`. | Exception | WH Ireland, Pershing, Castlebay (Brown Shipley if feasible) |
 | **VAL_001** | Empty policy. At `policy_aggregates` level, fails if both `total_cash_value_gbp == 0` and `total_bid_value_gbp == 0`. | Exception | All |
 | **MAP_001** | Unmapped security / residual cash proxy. At row level, if `security_id` is null: flags as residual cash if `bid_value_gbp < residual_cash_threshold_gbp`; raises exception if `bid_value_gbp ≥ threshold`. | Exception | All |
-| **POP_001** | Policy mapping check (optional, disabled by default). If `policy_mapping.csv` is present, fails if a DFM policy cannot be mapped to an internal IH policy. | Exception | All (optional) |
+| **POP_001** | Policy mapping check. If `policy_mapping.csv` is present, fails if a DFM policy cannot be mapped to an internal IH/Spice policy; emits `warning` for `REMOVE`-status policies; emits `not_evaluable` if file absent. | Exception | All (enabled by default) |
 
 ### 6.3 Evaluability
 
@@ -430,7 +458,7 @@ modifications:
   "MV_001": {
     "enabled": true,
     "tolerance_abs_gbp": 1.00,
-    "tolerance_pct": 0.001
+    "tolerance_pct": 0.02
   },
   "DATE_001": {
     "enabled": true,
@@ -441,9 +469,23 @@ modifications:
     "residual_cash_threshold_gbp": 1000.00
   },
   "POP_001": {
-    "enabled": false
+    "enabled": true
+  },
+  "tpir_check": {
+    "TC-001": { "enabled": true },
+    "TC-002": { "enabled": true },
+    "TC-003": { "enabled": true },
+    "TC-004": { "enabled": true },
+    "TC-005": { "enabled": true },
+    "TC-006": { "enabled": true },
+    "TC-007": { "enabled": true }
   }
 }
+```
+
+> **MV_001 tolerance note:** `tolerance_pct` is set to `0.02` (2%), matching the 98–102% operational
+> check performed in the original Excel process. Earlier drafts used `0.001` (0.1%), which was
+> a documentation error.
 ```
 
 ---
@@ -519,6 +561,39 @@ Machine-readable JSON containing GBP totals and row counts by DFM, for programma
 }
 ```
 
+### 7.4 TPIR Upload Check
+
+Before any data is submitted to ADS, `nb_tpir_check` evaluates the `tpir_load_equivalent` table
+against seven quality rules (TC-001 through TC-007). This is the automated equivalent of the
+"Run TPIR Upload Checker" step in the original Excel process.
+
+| Rule | Check | Blocking? |
+|------|-------|-----------|
+| TC-001 | All 13 required columns present | Yes |
+| TC-002 | At least one row in `tpir_load_equivalent` | Yes |
+| TC-003 | `Policyholder_Number` non-null for all rows | Yes |
+| TC-004 | `Bid_Value_in_GBP` non-null for non-cash rows | Yes |
+| TC-005 | `Currency_Local` is a valid ISO-4217 code | Yes |
+| TC-006 | No `REMOVE`-status policies in output | Warning only |
+| TC-007 | Row count matches `canonical_holdings` | Warning only |
+
+The result is written to `tpir_check_result.json` in the run output folder with
+`status: passed` or `status: failed`. ADS loading only proceeds on `passed`.
+See `specs/001-dfm-poc-ingestion/15_tpir_upload_checker.md` for the full specification.
+
+### 7.5 ADS Loading
+
+If the TPIR check passes, `nb_ads_load` submits the `tpir_load_equivalent` data to ADS
+(Asset Data Store) via REST API (see `apps/api/openapi.yaml` for the full API contract):
+
+1. Batches rows into `POST /api/v1/tpir/load` requests (batch size configured in `ads_config.json`).
+2. Polls `GET /api/v1/tpir/load/{runId}` until ADS confirms `status: committed`.
+3. Updates `run_audit_log` with `ads_load_status`, `ads_load_rows`, and `ads_load_completed_at`.
+
+Authentication uses Azure Managed Identity bearer tokens — no credentials in notebook code.
+ADS implements run-level idempotency on `run_id`, so re-running the same period is safe.
+See `specs/001-dfm-poc-ingestion/16_ads_loading.md` for the full specification.
+
 ---
 
 ## 8. Governance and Audit
@@ -536,6 +611,14 @@ run completes.
 | `NO_FILES` | No source files found in the landing zone for this DFM and period |
 | `PARTIAL` | At least one file processed; at least one parse error occurred |
 | `FAILED` | The DFM notebook raised an unrecoverable exception |
+
+Three additional columns track the downstream ADS load outcome (nullable on pre-Phase-8 rows):
+
+| Column | Type | Values |
+|--------|------|--------|
+| `ads_load_status` | string | `committed`, `failed`, `skipped_tpir_check_failed`, `skipped_no_rows` |
+| `ads_load_rows` | long | Number of rows accepted by ADS |
+| `ads_load_completed_at` | timestamp | When ADS confirmed commitment |
 
 ### 8.2 Parse Errors
 
@@ -868,7 +951,8 @@ REST API to execute `nb_run_all`.
 | **Phase 2 — DFM Ingestion** | Four DFM ingestion notebooks, `canonical_holdings` population, governance tables | Evening 1–2 (~3.0 h) |
 | **Phase 3 — Validation** | `nb_validate`, all four rules, `validation_events` | Evening 2, early (~1.0 h) |
 | **Phase 4 — Aggregation & Outputs** | `nb_aggregate`, `nb_reports`, all output files | Evening 2, mid-late (~1.5 h) |
-| **PoC Complete** | Full acceptance checklist passed | End of Evening 2 (~7 h total) |
+| **PoC Complete** | Full acceptance checklist (SC-01 to SC-10) passed | End of Evening 2 (~7 h total) |
+| **Phase 8 — Reference Data, Quality Gate & ADS Load** | `security_master.csv` enrichment, POP_001 enabled, `nb_tpir_check`, `nb_ads_load`, extended E2E test (SC-11, SC-12) | Post-PoC sprint (~1 day) |
 
 ### 13.2 Post-PoC Production Path
 
@@ -906,6 +990,8 @@ production readiness are:
 | SC-08 | `run_audit_log` has one row per DFM with correct status and row counts |
 | SC-09 | Re-running the same period does not duplicate `canonical_holdings` rows |
 | SC-10 | Disabling one DFM in `dfm_registry.json` does not break the run for other DFMs |
+| SC-11 | `tpir_check_result.json` shows `status: passed` at the end of a successful run |
+| SC-12 | `run_audit_log` shows `ads_load_status = committed` and non-zero `ads_load_rows` after a successful run |
 
 ---
 
@@ -924,6 +1010,10 @@ production readiness are:
 | **Rec_Output** | The Excel reconciliation output sheet that the PoC aims to replicate. It uses SUMIFS to aggregate cash, bid, and accrued values by DFM and policy. |
 | **Row hash** | A deterministic SHA-256 hash computed over the source-identity columns of a canonical holdings row. Used for de-duplication via MERGE upsert. |
 | **Run ID** | A unique UTC timestamp identifier for each pipeline run (e.g., `20251231T142300Z`). Every row in every table carries the `run_id` of the run that produced it. |
+| **ADS** | Asset Data Store. The downstream system that receives and persists the `tpir_load_equivalent` dataset each period via REST API. ADS implements run-level idempotency on `run_id`. |
+| **policy_mapping.csv** | Config file mapping DFM-originated policy references to canonical IH/Spice policy identifiers. Required by `POP_001`. Uploaded monthly before each run. |
+| **security_master.csv** | Config file providing ISIN/SEDOL → asset name/class enrichment. Used to populate `security_id` and `asset_name` before `MAP_001` is evaluated. Upstream source is the ISIN Master List workbook. |
 | **tpir_load** | The downstream data load process that consumes standardised holdings data. The PoC produces `tpir_load_equivalent`, a Delta table matching the tpir_load column contract. |
+| **TPIR Upload Checker** | A seven-rule quality gate (`nb_tpir_check`) that validates `tpir_load_equivalent` before it is submitted to ADS. An automated equivalent of the manual TPIR Upload Checker tool in the original Excel process. Results are written to `tpir_check_result.json`. |
 | **Validation event** | A row in the `validation_events` table recording the outcome of one rule evaluation for one row or policy: `fail`, `not_evaluable`, or (implicitly) pass if no row is emitted. |
 | **Well-Architected Framework** | Microsoft Azure's framework of best practices across five pillars: Reliability, Security, Cost Optimisation, Operational Excellence, and Performance Efficiency. |

@@ -455,3 +455,135 @@ acceptance:
 validate:
 - Execute checklist step-by-step
 - Confirm each SC-* item passes; document any gaps as follow-up issues
+
+---
+
+## Phase 8: Reference Data, Downstream Load & Quality Gate
+
+### Overview
+
+Phase 8 closes the gaps between the automated PoC pipeline and the full end-to-end operational process: security master enrichment, policy mapping validation, TPIR quality gate, and ADS load. These tasks depend on Phase 5 (tpir_load_equivalent) being complete.
+
+- [ ] T019 Upload security_master.csv to /Files/config/ with schema from 14_config_inputs.md and verify enrichment join works against sample data
+- [ ] T020 Implement security master enrichment join in nb_ingest shared utils: before writing to canonical_holdings, attempt ISIN/SEDOL join against security_master.csv to populate security_id and asset_name
+- [ ] T021 Enable and implement POP_001 in nb_validate per updated 05_validations.md: load policy_mapping.csv, join to canonical_holdings on (dfm_id, policy_id), emit fail for unmapped rows, warning for REMOVE-status rows, not_evaluable when file absent
+- [ ] T022 Implement nb_tpir_check per 15_tpir_upload_checker.md: run TC-001 through TC-007, write tpir_check_result.json to run output folder, update run_audit_log
+- [ ] T023 Implement nb_ads_load per 16_ads_loading.md: gate on tpir_check_result.json status=passed, batch POST to ADS REST API, poll for committed status, update run_audit_log with ads_load_status, ads_load_rows, ads_load_completed_at
+- [ ] T024 Execute extended end-to-end acceptance test: confirm TPIR check passes, ADS load commits, run_audit_log shows ads_load_status=committed; re-run same period and confirm idempotency at ADS (no duplicate rows)
+
+---
+
+### Task Details
+
+#### T019: Upload security_master.csv
+
+owner: app-python
+
+Upload a populated `security_master.csv` to `/Files/config/` covering all securities appearing in the PoC sample data for all four DFMs. Schema per `14_config_inputs.md`: `isin`, `sedol`, `asset_name`, `asset_class`, `currency_iso`.
+
+acceptance:
+- `security_master.csv` present under `/Files/config/` with correct column headers
+- File loads as a Spark DataFrame without schema errors
+- Covers all ISINs and SEDOLs in the PoC sample dataset (zero MAP_001 exceptions for known securities)
+
+validate:
+- Load file in a scratch notebook and run `df.schema` — confirm five columns match spec
+- Run full pipeline with sample data; confirm `MAP_001` exception count drops to zero for securities that were previously unmapped
+
+---
+
+#### T020: Implement security master enrichment join
+
+owner: app-python
+
+Add an enrichment step to `shared_utils.py` (`enrich_security_id`) and call it from each DFM ingestion notebook after canonical mapping but before writing to `canonical_holdings`. The join attempts: (1) ISIN match on `security_master.csv`.`isin`, then (2) SEDOL match on `security_master.csv`.`sedol`. On match, populate `security_id` (ISIN) and `asset_name` if currently null.
+
+acceptance:
+- Rows with null `security_id` but a matching ISIN/SEDOL in `security_master.csv` are enriched before writing to `canonical_holdings`
+- `asset_name` is populated from `security_master.csv` when absent from the DFM source
+- Rows with no match in `security_master.csv` remain with null `security_id` and trigger `MAP_001` as before
+
+validate:
+- Place a row with ISIN null but SEDOL matching a `security_master.csv` entry; confirm `security_id` is populated in `canonical_holdings`
+- Place a row with no ISIN and no matching SEDOL; confirm `security_id` remains null and `MAP_001` fires
+- Confirm all four DFM notebooks call the enrichment function
+
+---
+
+#### T021: Enable and implement POP_001
+
+owner: app-python
+
+Implement `POP_001` in `nb_validate` per the updated `05_validations.md`. Load `policy_mapping.csv` from `/Files/config/`. Left join `canonical_holdings` on `(dfm_id, policy_id)`. Emit `fail` for rows with no match, `warning` for rows matching a `status=REMOVE` entry, `not_evaluable` for all rows when file is absent. Enable by default in `rules_config.json`.
+
+acceptance:
+- `POP_001` emits `fail` events for any `(dfm_id, policy_id)` absent from `policy_mapping.csv`
+- `POP_001` emits `warning` events for `status=REMOVE` mapped policies
+- `POP_001` emits `not_evaluable` for all rows when `policy_mapping.csv` absent
+- `rules_config.json` has `POP_001` enabled by default
+
+validate:
+- Add a row with a policy absent from `policy_mapping.csv`; confirm `POP_001` `fail` event in `validation_events`
+- Add a row with `status=REMOVE` policy; confirm `warning` event
+- Remove `policy_mapping.csv` from config; confirm `not_evaluable` status for all rows
+- Confirm `POP_001` result does not prevent pipeline from completing
+
+---
+
+#### T022: Implement nb_tpir_check
+
+owner: app-python
+
+Create `nb_tpir_check` per `15_tpir_upload_checker.md`. Read `tpir_load_equivalent` filtered to current `run_id`. Evaluate TC-001 through TC-007 per `rules_config.json`. Write `tpir_check_result.json` to `/Files/output/period=YYYY-MM/run_id=<run_id>/`. Update `run_audit_log` with TPIR check outcome.
+
+acceptance:
+- `tpir_check_result.json` written after each run with `status: passed` or `status: failed`
+- Blocking failures (TC-001 through TC-005) set `status: failed` and populate `blocking_failures` array
+- Warnings (TC-006, TC-007) do not set `status: failed`
+- `run_audit_log` updated with TPIR check status
+
+validate:
+- Run with valid `tpir_load_equivalent`; confirm `tpir_check_result.json` shows `status: passed`
+- Introduce a row with null `Policyholder_Number`; confirm TC-003 fires and `status: failed`
+- Introduce a row with invalid `Currency_Local` (`XYZ`); confirm TC-005 fires and `status: failed`
+- Confirm warnings (TC-007) do not flip `status` to `failed`
+
+---
+
+#### T023: Implement nb_ads_load
+
+owner: app-python
+
+Create `nb_ads_load` per `16_ads_loading.md`. Gate on `tpir_check_result.json` `status=passed`. Batch `tpir_load_equivalent` rows into `POST /api/v1/tpir/load` requests using `batch_size` from `ads_config.json`. Poll `GET /api/v1/tpir/load/{runId}` for `committed` status. Update `run_audit_log` with `ads_load_status`, `ads_load_rows`, `ads_load_completed_at`.
+
+acceptance:
+- `nb_ads_load` refuses to run when `tpir_check_result.json` is absent or `status: failed`
+- All `tpir_load_equivalent` rows for `run_id` are submitted to ADS
+- `run_audit_log` shows `ads_load_status=committed` and correct `ads_load_rows` count after successful load
+- Re-submitting the same `run_id` to ADS is a no-op (idempotency confirmed via ADS response)
+
+validate:
+- Run full pipeline to committed ADS load; confirm `ads_load_status=committed` in `run_audit_log`
+- Run with failed TPIR check; confirm `ads_load_status=skipped_tpir_check_failed` and no ADS API call made
+- Simulate ADS 5xx error; confirm retry logic activates and eventually sets `ads_load_status=failed`
+- Re-run same period; confirm ADS returns idempotent response and `ads_load_rows` matches original
+
+---
+
+#### T024: Extended end-to-end acceptance test
+
+owner: app-python
+
+Extend T018 to cover the full pipeline including TPIR check, ADS load, and idempotency. Validate the six additional outcomes: TPIR check pass, ADS committed, run_audit_log completeness (with ADS fields), idempotent ADS re-run, MAP_001 resolution workflow, POP_001 resolution workflow.
+
+acceptance:
+- SC-001 through SC-005 from T018 still pass
+- `tpir_check_result.json` shows `status: passed` at end of successful run
+- `run_audit_log` shows `ads_load_status=committed` and non-zero `ads_load_rows`
+- Re-running same period does not duplicate ADS data
+- Adding a new entry to `security_master.csv` and re-running resolves a MAP_001 exception
+- Adding a new entry to `policy_mapping.csv` and re-running resolves a POP_001 exception
+
+validate:
+- Execute full run with clean sample data; confirm all six outcomes above
+- Document evidence for each outcome as follow-up issue or test log entry

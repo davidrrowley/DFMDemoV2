@@ -1,5 +1,306 @@
 openapi: 3.0.3
 info:
-  title: API
-  version: 0.1.0
-paths: {}
+  title: DFM PoC — ADS Ingest API
+  description: |
+    REST API for loading TPIR-format holdings data from the DFM PoC ingestion pipeline
+    into the Asset Data Store (ADS). This API is consumed exclusively by `nb_ads_load`
+    after a successful TPIR Upload Check (see `15_tpir_upload_checker.md`).
+  version: 1.0.0
+  contact:
+    name: Investment Operations — Assets Team
+
+servers:
+  - url: https://ads.internal.example.com
+    description: Production ADS endpoint
+  - url: https://ads-staging.internal.example.com
+    description: Staging / PoC ADS endpoint
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/tpir/load:
+    post:
+      summary: Submit a batch of TPIR holdings records
+      description: |
+        Accepts a batch of TPIR-format holdings records for a given run_id and period.
+        Records are submitted in batches (configured via `ads_config.json`). Multiple
+        POST calls with the same `run_id` are idempotent — subsequent calls after the
+        first accepted batch return `accepted` with `rows_accepted=0`.
+      operationId: postTpirLoad
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TpirLoadRequest'
+            example:
+              run_id: "2026-01-15T09:32:00Z"
+              period: "2025-12"
+              source: "dfm_poc_pipeline"
+              records:
+                - Policyholder_Number: "001234560"
+                  Security_Code: "LG001"
+                  ISIN: "GB0031348658"
+                  Other_Security_ID: null
+                  ID_Type: "ISIN"
+                  Asset_Name: "Legal & General UK Index"
+                  Acq_Cost_in_GBP: null
+                  Cash_Value_in_GBP: 0.00
+                  Bid_Value_in_GBP: 12543.21
+                  Accrued_Interest: 0.00
+                  Holding: 1250.000
+                  Loc_Bid_Price: 10.0346
+                  Currency_Local: "GBP"
+      responses:
+        '202':
+          description: Batch accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TpirLoadResponse'
+        '400':
+          description: Invalid request (missing required fields, schema violations)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised — missing or invalid bearer token
+        '409':
+          description: Conflict — run_id already committed; no action taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TpirLoadResponse'
+        '422':
+          description: Unprocessable entity — records failed ADS-side validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TpirLoadResponse'
+        '500':
+          description: Internal server error — retry with backoff
+
+  /api/v1/tpir/load/{runId}:
+    get:
+      summary: Get the load status for a run
+      description: |
+        Returns the current processing status for a previously submitted run_id.
+        Used by `nb_ads_load` to poll for the `committed` terminal state.
+      operationId: getTpirLoadStatus
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The run_id submitted in the original POST request
+          example: "2026-01-15T09:32:00Z"
+      responses:
+        '200':
+          description: Load status for the specified run_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TpirLoadStatus'
+        '404':
+          description: run_id not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorised
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Azure Managed Identity bearer token
+
+  schemas:
+
+    TpirLoadRequest:
+      type: object
+      required:
+        - run_id
+        - period
+        - source
+        - records
+      properties:
+        run_id:
+          type: string
+          description: Unique run identifier (UTC ISO-8601 timestamp from nb_run_all)
+          example: "2026-01-15T09:32:00Z"
+        period:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          description: Processing period in YYYY-MM format
+          example: "2025-12"
+        source:
+          type: string
+          description: Originating system identifier
+          example: "dfm_poc_pipeline"
+        batch_index:
+          type: integer
+          description: Zero-based batch sequence number (for multi-batch submissions)
+          example: 0
+        records:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TpirRecord'
+
+    TpirRecord:
+      type: object
+      required:
+        - Policyholder_Number
+        - ID_Type
+        - Bid_Value_in_GBP
+        - Currency_Local
+      properties:
+        Policyholder_Number:
+          type: string
+          description: IH/Spice canonical policy reference
+          example: "001234560"
+        Security_Code:
+          type: string
+          nullable: true
+          description: DFM-originated security code
+          example: "LG001"
+        ISIN:
+          type: string
+          nullable: true
+          pattern: '^[A-Z]{2}[A-Z0-9]{9}[0-9]$'
+          description: 12-character ISIN
+          example: "GB0031348658"
+        Other_Security_ID:
+          type: string
+          nullable: true
+          description: SEDOL or other alternate identifier
+          example: "3134865"
+        ID_Type:
+          type: string
+          enum: [ISIN, SEDOL, CASH, OTHER]
+          description: Primary identifier type for this row
+          example: "ISIN"
+        Asset_Name:
+          type: string
+          nullable: true
+          description: Canonical asset display name
+          example: "Legal & General UK Index"
+        Acq_Cost_in_GBP:
+          type: number
+          format: double
+          nullable: true
+          description: Acquisition cost in GBP (always null for PoC — not available from DFM sources)
+        Cash_Value_in_GBP:
+          type: number
+          format: double
+          nullable: true
+          description: Cash value in GBP
+          example: 0.00
+        Bid_Value_in_GBP:
+          type: number
+          format: double
+          description: Bid / market value in GBP
+          example: 12543.21
+        Accrued_Interest:
+          type: number
+          format: double
+          nullable: true
+          description: Accrued interest in GBP
+          example: 0.00
+        Holding:
+          type: number
+          format: double
+          nullable: true
+          description: Number of units / shares held
+          example: 1250.000
+        Loc_Bid_Price:
+          type: number
+          format: double
+          nullable: true
+          description: Local bid price per unit
+          example: 10.0346
+        Currency_Local:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO-4217 currency code for local denomination
+          example: "GBP"
+
+    TpirLoadResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+          example: "2026-01-15T09:32:00Z"
+        batch_index:
+          type: integer
+          example: 0
+        rows_accepted:
+          type: integer
+          example: 500
+        rows_rejected:
+          type: integer
+          example: 0
+        status:
+          type: string
+          enum: [accepted, partial, rejected]
+        rejected_rows:
+          type: array
+          nullable: true
+          description: Details of rejected rows (populated when status is partial or rejected)
+          items:
+            type: object
+            properties:
+              row_index:
+                type: integer
+              reason:
+                type: string
+
+    TpirLoadStatus:
+      type: object
+      properties:
+        run_id:
+          type: string
+          example: "2026-01-15T09:32:00Z"
+        period:
+          type: string
+          example: "2025-12"
+        total_rows_accepted:
+          type: integer
+          example: 1842
+        total_rows_rejected:
+          type: integer
+          example: 0
+        status:
+          type: string
+          enum: [pending, processing, committed, failed]
+          description: |
+            - `pending`: batches received but not yet processed
+            - `processing`: ADS is committing the data
+            - `committed`: fully committed; data available in ADS
+            - `failed`: ADS-side processing failure; pipeline must alert
+        committed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-01-15T09:48:22Z"
+        error:
+          type: string
+          nullable: true
+          description: Error message when status is failed
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+        request_id:
+          type: string
