@@ -47,10 +47,17 @@ For data flow diagrams see [data_flows.md](../../data_flows.md).
 | `nb_reports` | Write Report 1 CSVs, Report 2 roll-up, reconciliation_summary.json |
 | `nb_tpir_check` | Run TPIR Upload Check (TC-001 through TC-007); write tpir_check_result.json |
 | `nb_ads_load` | Submit tpir_load_equivalent to ADS REST API; update run_audit_log |
+| `nb_ai_schema_mapper` | **AI** — After ingestion; proposes `raw_parsing_config.json` diffs for schema drift via GPT-4o |
+| `nb_ai_fuzzy_resolver` | **AI** — After validation; embeds unresolved MAP_001/POP_001 failures and returns top-3 lookup candidates |
+| `nb_ai_anomaly_detector` | **AI** — After aggregation; flags portfolio-level movements vs prior 3 periods via GPT-4o |
+| `nb_ai_exception_triage` | **AI** — After validation; classifies each failure as expected\_design / expected\_recurring / novel\_investigate via GPT-4o-mini |
+| `nb_ai_narrative` | **AI** — Final step; generates plain-English run summary via GPT-4o; writes run\_summary.txt |
 
 ### Shared library
 
 `shared_utils.py` — eight shared functions used across all DFM notebooks: `parse_numeric`, `parse_date`, `apply_fx`, `row_hash`, `emit_audit`, `emit_parse_error`, `emit_drift_event`, `emit_validation_event`.
+
+`shared_ai_utils.py` — three shared AI helper functions used across AI notebooks: `call_llm(prompt, system, config, max_tokens, temperature)` (Azure OpenAI chat completion via Managed Identity bearer token), `embed_texts(texts, config)` (batch embedding via text-embedding-3-small), `cosine_top_k(query_emb, candidate_embs, candidates, k=3)` (in-memory cosine similarity). All functions raise `AzureAIUnavailableError` on network failure — never crash the calling notebook.
 
 ### Delta tables (seven)
 
@@ -63,6 +70,10 @@ For data flow diagrams see [data_flows.md](../../data_flows.md).
 | `run_audit_log` | One row per DFM per run; files processed, rows ingested, ADS load status |
 | `parse_errors` | Row-level field parsing failures |
 | `schema_drift_events` | Source file schema changes (missing/unexpected columns) |
+| `ai_resolution_suggestions` | **AI** — Schema mapping proposals and fuzzy match candidates for analyst review |
+| `ai_anomaly_events` | **AI** — Portfolio-level anomaly flags per period/DFM with severity and reasoning |
+| `ai_triage_labels` | **AI** — Per-failure classification (expected\_design / expected\_recurring / novel\_investigate) |
+| `ai_run_narratives` | **AI** — LLM-generated plain-English run summaries with input payloads for audit |
 
 ### Config files (`/Files/config/`)
 
@@ -76,6 +87,7 @@ For data flow diagrams see [data_flows.md](../../data_flows.md).
 | `security_master.csv` | ISIN/SEDOL → asset name lookup | Every period (when new securities appear) |
 | `policy_mapping.csv` | DFM policy ref → IH policy ref mapping | Every period (when new/changed policies appear) |
 | `ads_config.json` | ADS REST API base URL and batch settings | On environment change |
+| `azure_openai_config.json` | Azure OpenAI endpoint, deployment names, per-step token/temperature settings | On model deployment change |
 
 ---
 
@@ -116,8 +128,45 @@ Environment-specific settings (ADS base URL) are isolated in `/Files/config/ads_
 | ADS load status | `nb_ads_load` | `run_audit_log` (`ads_load_status`, `ads_load_rows`) |
 | Period reconciliation | `nb_reports` | `reconciliation_summary.json` |
 | Analyst-readable reports | `nb_reports` | Report 1 CSVs, Report 2 roll-up CSV |
+| **AI** — Schema mapping proposals | `nb_ai_schema_mapper` | `ai_resolution_suggestions`, `ai_schema_suggestions.txt` |
+| **AI** — Fuzzy match candidates | `nb_ai_fuzzy_resolver` | `ai_resolution_suggestions`, `ai_fuzzy_resolutions.txt` |
+| **AI** — Anomaly flags | `nb_ai_anomaly_detector` | `ai_anomaly_events`, `ai_anomaly_report.txt` |
+| **AI** — Triage labels | `nb_ai_exception_triage` | `ai_triage_labels` |
+| **AI** — Run narrative | `nb_ai_narrative` | `ai_run_narratives`, `run_summary.txt` |
 
 No external monitoring system (e.g. Datadog, Azure Monitor alerts) is in scope for the PoC. Post-PoC recommendation: add Azure Monitor alerts on `run_audit_log` rows where `status = FAILED` or `ads_load_status = failed`.
+
+---
+
+## AI architecture
+
+The five AI steps operate in enrichment-only mode: they never modify the deterministic pipeline outputs (`canonical_holdings`, `tpir_load_equivalent`, `run_audit_log`, `policy_aggregates`). All AI outputs are written to separate tables (`ai_*`) and output files, and are clearly labelled as AI-generated.
+
+```
+Deterministic pipeline (unchanged)
+    │
+    ├─ nb_ai_schema_mapper ──→ ai_resolution_suggestions (schema proposals)
+    │  (triggered on drift)    ai_schema_suggestions.txt
+    │
+    ├─ nb_ai_fuzzy_resolver ──→ ai_resolution_suggestions (match candidates)
+    │  (triggered on MAP/POP)   ai_fuzzy_resolutions.txt
+    │
+    ├─ nb_ai_anomaly_detector → ai_anomaly_events
+    │  (every run)              ai_anomaly_report.txt
+    │
+    ├─ nb_ai_exception_triage → ai_triage_labels
+    │  (every run with failures)
+    │
+    └─ nb_ai_narrative ───────→ ai_run_narratives
+       (final step)             run_summary.txt  ← analyst reads this first
+```
+
+**Azure OpenAI model allocation:**
+- GPT-4o: schema mapping, anomaly detection, narrative generation
+- GPT-4o-mini: exception triage (classification task; cost/quality tradeoff acceptable)
+- text-embedding-3-small: fuzzy resolution (no LLM call; embeddings only)
+
+**Data governance:** Only DFM-level aggregates (not individual policy or security data) are sent to the LLM in `nb_ai_anomaly_detector`. Unresolved identifiers (security names, policy refs) are sent to the embedding API in `nb_ai_fuzzy_resolver` — these are internal reference identifiers, not PII. See `constraints.md` for the data sensitivity classification.
 
 ---
 
@@ -141,3 +190,6 @@ Key architectural decisions are recorded in [docs/adr/](../adr/). Relevant decis
 - REST API for ADS load (enables status polling and idempotency via run_id)
 - `POP_001` enabled by default (operational reconciliation requirement; was disabled in initial PoC scaffold)
 - `tolerance_pct = 0.02` for MV_001 (matches the 98–102% operational check from the Excel process)
+- GPT-4o for schema mapping, anomaly analysis, and narrative; GPT-4o-mini for triage (see `decision_candidate.md`)
+- In-memory cosine similarity over Azure AI Search for fuzzy resolution (PoC scale ≤15K candidates; see `decision_candidate.md`)
+- AI steps are enrichment-only; deterministic pipeline outputs are never mutated by AI notebooks

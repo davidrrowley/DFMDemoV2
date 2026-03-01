@@ -587,3 +587,216 @@ acceptance:
 validate:
 - Execute full run with clean sample data; confirm all six outcomes above
 - Document evidence for each outcome as follow-up issue or test log entry
+
+---
+
+## Phase 9: AI Augmentation
+
+**Goal**: Layer five AI capabilities on top of the deterministic pipeline using Azure OpenAI.
+All AI steps are non-blocking: pipeline outcomes are not changed by AI failures.
+
+**Prerequisites**: Azure OpenAI resource provisioned via `infra/bicep/azure-openai.bicep`,
+`azure_openai_config.json` uploaded to `/Files/config/`, and `shared_ai_utils.py` extended
+with `call_llm`, `embed_texts`, and `cosine_top_k` functions.
+
+**Independent Test**: Each AI notebook can be invoked individually against existing run data.
+
+---
+
+#### T025: Provision Azure OpenAI and upload AI config
+
+owner: app-python
+
+Deploy `infra/bicep/azure-openai.bicep` to provision the Azure OpenAI resource with gpt-4o,
+gpt-4o-mini, and text-embedding-3-small deployments. Assign the Fabric workspace Managed
+Identity the `Cognitive Services OpenAI User` role. Create and upload `azure_openai_config.json`
+to `/Files/config/` with endpoint, deployment names, and per-notebook token and temperature
+settings.
+
+acceptance:
+- Azure OpenAI resource deployed with all three model deployments active
+- Fabric workspace Managed Identity can call each deployment without an API key
+- `azure_openai_config.json` present in `/Files/config/` and parseable
+- A smoke-test notebook cell calling `call_llm("ping", "respond with pong")` returns a response
+
+validate:
+- Run Bicep deployment and confirm no errors in Azure portal
+- Open Fabric notebook, load `azure_openai_config.json`, call GPT-4o, confirm response
+- Confirm no API key or secret appears in any notebook or config file
+
+---
+
+#### T026: Extend shared_ai_utils.py with AI helper functions
+
+owner: app-python
+
+Add three functions to `shared_ai_utils.py`: `call_llm(prompt, system, config, max_tokens,
+temperature)` (Azure OpenAI chat completion via Managed Identity), `embed_texts(texts, config)`
+(batch embedding via text-embedding-3-small), `cosine_top_k(query_emb, candidate_embs,
+candidates, k=3)` (in-memory cosine similarity). All functions must be fault-tolerant:
+network errors raise a catchable `AzureAIUnavailableError` rather than killing the notebook.
+
+acceptance:
+- `call_llm` returns a string response for a simple prompt
+- `embed_texts(["test"])` returns a list of one float vector
+- `cosine_top_k` returns the top-3 candidates sorted by descending score
+- All three raise `AzureAIUnavailableError` (not a raw exception) on network failure
+
+validate:
+- Import in scratch notebook; run each function with a simple input; confirm expected output
+- Disconnect OpenAI endpoint (wrong URL); confirm `AzureAIUnavailableError` is raised
+- Confirm function signatures match expected calls in T027–T031 notebooks
+
+---
+
+#### T027: Implement nb_ai_schema_mapper
+
+owner: app-python
+
+Create `nb_ai_schema_mapper` per `17_ai_schema_mapping.md`. Triggered after DFM ingestion if
+`schema_drift_events` contains `MISSING_COLUMN` rows for the current run. Construct GPT-4o
+prompt with current config, actual headers, and 5 sample rows. Write suggestion to
+`ai_resolution_suggestions`. Write `ai_schema_suggestions.txt` to output folder.
+
+acceptance:
+- `ai_resolution_suggestions` receives a `schema_mapping` row when drift is detected
+- `suggestion_json` is valid JSON matching `raw_parsing_config.json` structure
+- Notebook exits without error and without calling Azure OpenAI when no drift detected
+- `raw_parsing_config.json` is never modified by this notebook
+
+validate:
+- Introduce a renamed column in a DFM test file; run pipeline; confirm suggestion row written
+- Inspect `suggestion_json`; confirm proposed mapping is plausible
+- Run with clean files (no drift); confirm no Azure OpenAI calls in notebook execution log
+
+---
+
+#### T028: Implement nb_ai_fuzzy_resolver
+
+owner: app-python
+
+Create `nb_ai_fuzzy_resolver` per `18_ai_fuzzy_resolution.md`. Triggered after `nb_validate`
+if MAP_001 or POP_001 failures exist. Load `security_master.csv` and `policy_mapping.csv`,
+embed all candidate names, embed each unresolved identifier, compute cosine top-3, write to
+`ai_resolution_suggestions`. Write `ai_fuzzy_resolutions.txt` to output folder.
+
+acceptance:
+- One `ai_resolution_suggestions` row per unique unresolved security/policy failure
+- `candidates_json` contains 3 ranked entries with cosine scores
+- A seeded name mismatch with ≥ semantic similarity produces `top_score ≥ 0.90`
+- Notebook exits without Azure OpenAI calls when no MAP_001/POP_001 failures exist
+- Neither `security_master.csv` nor `policy_mapping.csv` is modified
+
+validate:
+- Add a row with security name `"Vodafone Grp PLC"` (not in master); run pipeline;
+  confirm suggestion row with `"Vodafone Group PLC"` as top candidate
+- Confirm `security_master.csv` unchanged after run
+- Run with no validation failures; confirm no embedding API calls
+
+---
+
+#### T029: Implement nb_ai_anomaly_detector
+
+owner: app-python
+
+Create `nb_ai_anomaly_detector` per `19_ai_anomaly_detection.md`. Runs after `nb_aggregate`
+every period. Build DFM-level aggregate payload (current + prior 3 periods). Call GPT-4o
+with anomaly detection prompt. Write results to `ai_anomaly_events` Delta table and
+`ai_anomaly_report.txt` in output folder.
+
+acceptance:
+- `ai_anomaly_events` receives at least one row per run when prior period data exists
+- Seeded 40% DFM-level total decrease produces a row with `severity=high`
+- No individual policy or security data appears in any LLM prompt
+- When fewer than 2 prior periods exist, `flag=insufficient_history` written; no API call made
+- `nb_ads_load` proceeds regardless of anomaly severity
+
+validate:
+- Seed a 40% drop in WH Ireland `total_bid_value_gbp` vs prior period; confirm `severity=high`
+- Inspect constructed prompt; confirm only DFM aggregate totals present (no policy ids)
+- Remove all prior period data; confirm `insufficient_history` row without API call
+
+---
+
+#### T030: Implement nb_ai_exception_triage
+
+owner: app-python
+
+Create `nb_ai_exception_triage` per `20_ai_exception_triage.md`. Runs after `nb_validate`
+if failures exist. Group failures by `(dfm_id, rule_id)`, compare against prior 3 runs,
+call GPT-4o-mini per group, write classification labels to `ai_triage_labels`. Ensure Brown
+Shipley `MV_001 not_evaluable` rows are classified `expected_design`.
+
+acceptance:
+- `ai_triage_labels` receives one row per `validation_events` failure for the current run
+- Recurring failure (same pattern in all 3 prior periods) classified `expected_recurring`
+- New failure not in prior periods classified `novel_investigate`
+- Brown Shipley MV_001 not_evaluable classified `expected_design`
+- All failures default to `novel_investigate` when GPT-4o-mini unavailable
+
+validate:
+- Run pipeline; verify every `validation_events` failure has a corresponding `ai_triage_labels` row
+- Introduce a new MAP_001 failure not seen before; confirm `novel_investigate`
+- Simulate OpenAI unavailability; confirm all failures become `novel_investigate`, no errors thrown
+
+---
+
+#### T031: Implement nb_ai_narrative
+
+owner: app-python
+
+Create `nb_ai_narrative` per `21_ai_narrative.md`. Final step in `nb_run_all`. Collect all
+run outcomes into structured JSON payload. Call GPT-4o to generate plain-English narrative.
+Write `run_summary.txt` with deterministic preamble + AI narrative to output folder. Write
+row to `ai_run_narratives` Delta table.
+
+acceptance:
+- `run_summary.txt` written to output folder for every run
+- Deterministic preamble contains correct period, run_id, DFM statuses, TPIR result, ADS status
+- AI narrative section contains coherent English text (non-empty, references the period)
+- When 4 novel failures exist, `--- Action Required ---` section lists them
+- When Azure OpenAI unavailable, file still written with preamble + unavailability notice; no exception raised
+
+validate:
+- Run complete pipeline; open `run_summary.txt`; verify preamble accuracy against `run_audit_log`
+- Confirm narrative text is present and mentions the correct period
+- Disconnect OpenAI; confirm file written with unavailability notice; confirm `nb_run_all` exits cleanly
+
+---
+
+#### T032: Add four new AI Delta tables to nb_setup
+
+owner: app-python
+
+Extend `nb_setup` DDL to create four new AI Delta tables: `ai_resolution_suggestions`,
+`ai_anomaly_events`, `ai_triage_labels`, `ai_run_narratives`. Schemas per specs 17–21.
+
+acceptance:
+- All four tables created with correct schemas and no partition (small governance tables)
+- Existing seven tables unaffected
+- `nb_setup` is idempotent: re-running does not error if tables already exist
+
+validate:
+- Run `nb_setup`; run `spark.catalog.listTables()`; confirm 11 total tables
+- Run `nb_setup` a second time; confirm no errors
+
+---
+
+#### T033: Full AI-augmented end-to-end acceptance test
+
+owner: app-python
+
+Extend T024 to cover all five AI capabilities. Verify SC-13 through SC-17.
+
+acceptance:
+- SC-001 through SC-012 from T024 still pass
+- `ai_resolution_suggestions` contains candidate rows for seeded MAP_001 failures (SC-13)
+- `ai_anomaly_events` flags seeded 40% drop as `high` severity (SC-14)
+- `ai_triage_labels` classifies Brown Shipley MV_001 not_evaluable as `expected_design` (SC-15)
+- `run_summary.txt` is non-empty and correctly references the period and DFM count (SC-16)
+- Copilot Studio agent returns correct GBP total for a test query (SC-17)
+
+validate:
+- Execute full run with seeded anomaly and MAP_001 failure; confirm SC-13 through SC-16
+- Open Copilot Studio; ask "what was the WH Ireland total last month?"; confirm correct value returned
+- Document evidence for each criterion

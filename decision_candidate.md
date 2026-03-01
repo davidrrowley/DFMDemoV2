@@ -29,3 +29,55 @@ The `16_ads_loading.md` spec and `apps/api/openapi.yaml` define ADS loading as a
 - If Option A is confirmed: proceed with T022–T023 as specced; ADS team must provide the base URL and confirm the `run_id` idempotency contract.
 - If Option B is chosen: `16_ads_loading.md` and `openapi.yaml` must be updated; `nb_ads_load` becomes a file-write operation; the TPIR check result still gates the write.
 - If this is not resolved before T023 begins: T023 should be implemented with a configurable transport adapter so the mechanism can be switched without re-implementing the notebook logic.
+
+---
+
+## Decision: GPT-4o vs GPT-4o-mini for AI steps
+
+### Context
+
+The five AI pipeline steps (schema mapping, fuzzy resolution, anomaly detection, exception
+triage, narrative generation) have different quality and latency requirements. Using GPT-4o for
+all steps maximises quality but increases cost and latency. GPT-4o-mini is faster and cheaper
+but may produce lower quality for complex reasoning tasks.
+
+### Recommendation by step
+
+| Step | Recommended model | Rationale |
+|------|------------------|-----------|
+| `nb_ai_schema_mapper` | GPT-4o | Schema mapping is ambiguous and must produce structured JSON precisely |
+| `nb_ai_fuzzy_resolver` | `text-embedding-3-small` only | Fuzzy matching uses embeddings; no LLM call needed |
+| `nb_ai_anomaly_detector` | GPT-4o | Cross-period reasoning requires deeper analytical capability |
+| `nb_ai_exception_triage` | GPT-4o-mini | Classification task; lower complexity; cost/quality tradeoff acceptable |
+| `nb_ai_narrative` | GPT-4o | Quality of analyst-facing narrative matters; GPT-4o-mini produces flatter prose |
+
+This decision is captured in `azure_openai_config.json` via per-step deployment name fields
+and can be changed without code modification.
+
+**Status: Recommended — awaiting confirmation after T025 smoke test.**
+
+---
+
+## Decision: In-memory embedding search vs Azure AI Search
+
+### Context
+
+`nb_ai_fuzzy_resolver` must perform similarity search over `security_master.csv` (≤10,000
+entries) and `policy_mapping.csv` (≤5,000 entries). Two options exist:
+
+- **Option A — In-memory cosine similarity (recommended for PoC)**: Load both files into the
+  Spark driver memory, embed all entries on first call (cached), perform cosine similarity in
+  NumPy. No additional Azure resource required. Latency: ~5–15 seconds on first call; sub-second
+  on subsequent calls within the same session.
+
+- **Option B — Azure AI Search**: Index `security_master.csv` and `policy_mapping.csv` as
+  vector search indexes. Requires provisioning Azure AI Search (Basic SKU ~£70/month),
+  managing index refresh on file updates, and additional network connectivity.
+
+### Recommendation
+
+**Option A (in-memory)** for the PoC. At ≤15,000 total candidates, in-memory search is
+practical. Azure AI Search should be revisited if the security master grows beyond ~50,000
+entries or if sub-second latency on cold start becomes a requirement.
+
+**Status: Decided — Option A adopted in `18_ai_fuzzy_resolution.md`.**

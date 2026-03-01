@@ -77,37 +77,47 @@ A single notebook run for any given period should produce:
   tie-out.
 - **`run_audit_log`** + **`parse_errors`** + **`schema_drift_events`** — governance tables providing
   full data lineage per run.
+- **`run_summary.txt`** — an AI-generated plain-English analyst briefing covering run status,
+  novel validation failures, portfolio anomaly flags, and ADS load outcome (produced by
+  `nb_ai_narrative` using GPT-4o).
+- **AI enrichment tables** (`ai_resolution_suggestions`, `ai_anomaly_events`, `ai_triage_labels`,
+  `ai_run_narratives`) — Advisory AI outputs that assist analyst investigation without modifying
+  the deterministic pipeline data.
 
 ## Platform Boundaries
 
 **In scope (PoC):**
 - Microsoft Fabric Lakehouse (OneLake, Delta tables, PySpark notebooks)
+- Azure OpenAI (GPT-4o, GPT-4o-mini, text-embedding-3-small) — five AI augmentation notebooks
 - Four DFM source formats: Brown Shipley, WH Ireland, Pershing, Castlebay
 - Monthly period-based ingestion (one `period=YYYY-MM` per run)
 - Config-driven DFM isolation (`dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`)
 - MV_001 check for WH Ireland, Pershing, Castlebay (Brown Shipley if feasible)
-- Validation rules: DATE_001, MV_001, VAL_001, MAP_001 (POP_001 optional/disabled by default)
+- Validation rules: DATE_001, MV_001, VAL_001, MAP_001, POP_001 (enabled by default)
 - Row-hash de-duplication to ensure idempotent re-runs
 - European and UK/US numeric parsing (`parse_numeric`)
 - FX conversion to GBP (`apply_fx`)
+- AI schema drift mapping, AI fuzzy security/policy resolution, AI portfolio anomaly detection,
+  AI exception triage, AI run narrative generation
+- Copilot Studio conversational agent for stakeholder queries
 
 **Out of scope (PoC):**
 - Full replacement of Excel templates in production
 - Enterprise-grade ops: CI/CD pipelines, full alerting, automatic retries
 - Bank holiday working-day calendars (weekend-only PoC)
-- IH policy mapping (`POP_001` disabled by default; requires `policy_mapping.csv`)
 - Multi-user access control beyond existing Fabric workspace permissions
 - Real-time or intraday ingestion
+- Autonomous AI modification of pipeline config or canonical data (AI is enrichment-only)
 
 ## Key Constraints
 
 | Constraint | Detail |
 |---|---|
-| Time budget | 2 evenings maximum for initial PoC build |
-| Development approach | AI-assisted (GitHub Copilot); human review of finance logic |
-| Finance calculation determinism | Core calculations (MV, aggregates) must be deterministic; AI may assist with drift detection and narrative only |
-| Platform | Microsoft Fabric only (no on-premise or alternative cloud) |
-| Data handling | Client data in Fabric OneLake governed by existing workspace access controls |
+| Time budget | 2 evenings for initial PoC build + 1–2 additional sprints for AI augmentation and Copilot Studio |
+| Development approach | AI-assisted (GitHub Copilot agent fleet working from structured specs in `agents/` and `specs/`); human review of finance logic |
+| Finance calculation determinism | Core calculations (MV, aggregates) must be deterministic; AI augmentation operates on enrichment tables only and never modifies canonical pipeline outputs |
+| Platform | Microsoft Fabric + Azure OpenAI (same tenant; Managed Identity auth) |
+| Data handling | Client data in Fabric OneLake governed by existing workspace access controls; only DFM-level aggregates (not individual positions) sent to Azure OpenAI |
 
 ## Success Criteria
 

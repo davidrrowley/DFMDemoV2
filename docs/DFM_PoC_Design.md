@@ -129,8 +129,9 @@ Azure Databricks, or Azure Synapse instance is required.
 | **Lakehouse** | Fabric Lakehouse | Managed storage combining OneLake (file storage) and Delta Lake (table storage) |
 | **OneLake** | OneLake (Azure Data Lake Gen 2) | Stores landing files, config, and output reports |
 | **Delta Tables** | Delta Lake (via Fabric) | Seven managed tables for all canonical, aggregate, and governance data |
-| **Notebooks** | Fabric PySpark Notebooks | Python + PySpark for ingestion, validation, aggregation, and reporting logic |
+| **Notebooks** | Fabric PySpark Notebooks | Python + PySpark for ingestion, validation, aggregation, reporting, and AI augmentation logic |
 | **Pipeline (optional)** | Fabric Pipeline | Schedules and orchestrates `nb_run_all` for periodic execution |
+| **Azure OpenAI** | Azure Cognitive Services | Provides GPT-4o, GPT-4o-mini, and text-embedding-3-small for AI augmentation steps; accessed via Managed Identity (no API keys) |
 | **Environment Secrets** | Fabric Environment / Key Vault reference | Stores FX feed credentials and any future API keys — never in source files |
 
 ### 3.3 OneLake Folder Structure
@@ -149,7 +150,8 @@ Azure Databricks, or Azure Synapse instance is required.
 │   ├── fx_rates.csv             ← FX rates for the period (GBP base); uploaded monthly
 │   ├── security_master.csv      ← ISIN/SEDOL → canonical asset name lookup; uploaded monthly
 │   ├── policy_mapping.csv       ← DFM policy ref → IH/Spice policy ref; uploaded monthly
-│   └── ads_config.json          ← ADS REST API base URL and batch settings; env-specific
+│   ├── ads_config.json          ← ADS REST API base URL and batch settings; env-specific
+│   └── azure_openai_config.json ← Azure OpenAI endpoint, deployment names, token/temp settings
 └── output/
     └── period=YYYY-MM/
         └── run_id=<run_id>/
@@ -190,6 +192,10 @@ OneLake and are queryable directly from notebooks or via Fabric SQL endpoint.
 | `run_audit_log` | One row per DFM per run; files processed, row counts, status | None (small table) |
 | `schema_drift_events` | Schema changes detected in DFM source files | None (small table) |
 | `parse_errors` | Row-level parse failures from DFM ingestion | None |
+| `ai_resolution_suggestions` | **AI** — Schema mapping proposals and fuzzy match candidates | None |
+| `ai_anomaly_events` | **AI** — Portfolio-level anomaly flags per period/DFM | None |
+| `ai_triage_labels` | **AI** — Per-failure classification labels | None |
+| `ai_run_narratives` | **AI** — LLM-generated plain-English run summaries | None |
 
 ### 4.2 Canonical Holdings Schema
 
@@ -323,8 +329,19 @@ The pipeline is triggered by running the `nb_run_all` notebook with a `period` p
                             ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │  8. Finalise run_audit_log for all DFMs                                │
+└───────────────────────────┬────────────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  9. nb_ai_narrative (AI — final step)                                  │
+│     Collects all run outcomes into structured payload                  │
+│     Calls GPT-4o → plain-English run summary                          │
+│     Writes run_summary.txt and ai_run_narratives                      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
+
+AI augmentation steps run at various points during the above sequence — see
+[Section 7.6](#76-ai-augmentation-steps) for the full AI pipeline overlay.
 
 ### 5.2 DFM Source Formats and Ingestion Differences
 
@@ -593,6 +610,43 @@ If the TPIR check passes, `nb_ads_load` submits the `tpir_load_equivalent` data 
 Authentication uses Azure Managed Identity bearer tokens — no credentials in notebook code.
 ADS implements run-level idempotency on `run_id`, so re-running the same period is safe.
 See `specs/001-dfm-poc-ingestion/16_ads_loading.md` for the full specification.
+
+### 7.6 AI Augmentation Steps
+
+Five AI notebooks enrich the deterministic pipeline at specific points. All are non-blocking:
+a failure in an AI step never causes `nb_run_all` to raise an unrecoverable exception.
+Deterministic pipeline outputs (`canonical_holdings`, `tpir_load_equivalent`, `policy_aggregates`)
+are never modified by AI steps.
+
+```
+After ingestion, if schema_drift_events present:
+  → nb_ai_schema_mapper: proposes raw_parsing_config.json diffs via GPT-4o
+    → ai_resolution_suggestions, ai_schema_suggestions.txt
+
+After nb_aggregate, every run:
+  → nb_ai_anomaly_detector: flags DFM-level portfolio movements vs prior 3 periods
+    → ai_anomaly_events, ai_anomaly_report.txt
+
+After nb_validate, if validation failures present:
+  → nb_ai_exception_triage: classifies failures as expected_design /
+    expected_recurring / novel_investigate via GPT-4o-mini
+    → ai_triage_labels
+  → nb_ai_fuzzy_resolver: embeds unresolved MAP_001/POP_001 securities/policies;
+    returns cosine top-3 candidates from security_master / policy_mapping
+    → ai_resolution_suggestions, ai_fuzzy_resolutions.txt
+
+Final step (after nb_ads_load):
+  → nb_ai_narrative: generates plain-English analyst-facing run summary via GPT-4o
+    → ai_run_narratives, run_summary.txt
+```
+
+**Model allocation:**
+- GPT-4o: schema mapping, anomaly detection, narrative generation
+- GPT-4o-mini: exception triage (classification task; cost / quality tradeoff acceptable)
+- text-embedding-3-small: fuzzy resolution (no LLM call; embeddings + cosine similarity only)
+
+For full specifications see `specs/001-dfm-poc-ingestion/17_ai_schema_mapping.md` through
+`21_ai_narrative.md`.
 
 ---
 
@@ -953,6 +1007,7 @@ REST API to execute `nb_run_all`.
 | **Phase 4 — Aggregation & Outputs** | `nb_aggregate`, `nb_reports`, all output files | Evening 2, mid-late (~1.5 h) |
 | **PoC Complete** | Full acceptance checklist (SC-01 to SC-10) passed | End of Evening 2 (~7 h total) |
 | **Phase 8 — Reference Data, Quality Gate & ADS Load** | `security_master.csv` enrichment, POP_001 enabled, `nb_tpir_check`, `nb_ads_load`, extended E2E test (SC-11, SC-12) | Post-PoC sprint (~1 day) |
+| **Phase 9 — AI Augmentation** | Azure OpenAI provisioning (`infra/bicep/azure-openai.bicep`), `shared_ai_utils.py`, five AI notebooks, four AI Delta tables, Copilot Studio agent (SC-13 to SC-17) | Post-PoC sprint (~2 days) |
 
 ### 13.2 Post-PoC Production Path
 
@@ -992,6 +1047,11 @@ production readiness are:
 | SC-10 | Disabling one DFM in `dfm_registry.json` does not break the run for other DFMs |
 | SC-11 | `tpir_check_result.json` shows `status: passed` at the end of a successful run |
 | SC-12 | `run_audit_log` shows `ads_load_status = committed` and non-zero `ads_load_rows` after a successful run |
+| SC-13 | `ai_resolution_suggestions` contains at least one candidate row for each MAP_001 failure in a test run with a known unmapped security |
+| SC-14 | `ai_anomaly_events` flags a seeded 40% DFM-level portfolio decrease as `severity = high` |
+| SC-15 | `ai_triage_labels` classifies Brown Shipley `MV_001 not_evaluable` failures as `expected_design` |
+| SC-16 | `run_summary.txt` is non-empty and correctly references the period, run_id, and DFM count |
+| SC-17 | Copilot Studio agent returns the correct GBP total when asked about the previous month's WH Ireland totals |
 
 ---
 
@@ -1011,6 +1071,11 @@ production readiness are:
 | **Row hash** | A deterministic SHA-256 hash computed over the source-identity columns of a canonical holdings row. Used for de-duplication via MERGE upsert. |
 | **Run ID** | A unique UTC timestamp identifier for each pipeline run (e.g., `20251231T142300Z`). Every row in every table carries the `run_id` of the run that produced it. |
 | **ADS** | Asset Data Store. The downstream system that receives and persists the `tpir_load_equivalent` dataset each period via REST API. ADS implements run-level idempotency on `run_id`. |
+| **ai_anomaly_events** | Delta table storing portfolio-level anomaly flags generated by `nb_ai_anomaly_detector`. Each row records a DFM-level movement flag with severity and plain-English reasoning. |
+| **ai_resolution_suggestions** | Delta table storing schema mapping proposals (from `nb_ai_schema_mapper`) and fuzzy match candidates (from `nb_ai_fuzzy_resolver`). Analyst-reviewed; never auto-applied. |
+| **ai_run_narratives** | Delta table storing LLM-generated plain-English run summaries produced by `nb_ai_narrative`. One row per run. |
+| **ai_triage_labels** | Delta table storing per-failure classification labels (`expected_design`, `expected_recurring`, `novel_investigate`) produced by `nb_ai_exception_triage`. |
+| **Azure OpenAI** | Microsoft Azure's managed service for OpenAI models. Provides GPT-4o, GPT-4o-mini, and text-embedding-3-small deployments accessed via Azure Managed Identity. |
 | **policy_mapping.csv** | Config file mapping DFM-originated policy references to canonical IH/Spice policy identifiers. Required by `POP_001`. Uploaded monthly before each run. |
 | **security_master.csv** | Config file providing ISIN/SEDOL → asset name/class enrichment. Used to populate `security_id` and `asset_name` before `MAP_001` is evaluated. Upstream source is the ISIN Master List workbook. |
 | **tpir_load** | The downstream data load process that consumes standardised holdings data. The PoC produces `tpir_load_equivalent`, a Delta table matching the tpir_load column contract. |

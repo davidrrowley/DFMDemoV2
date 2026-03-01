@@ -1,6 +1,6 @@
-# DFM Reconciliation Automation — Stakeholder Overview
+# DFM AI-Powered Reconciliation — Stakeholder Overview
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** March 2026  
 **Audience:** Business stakeholders, investment operations leadership, compliance  
 **Status:** Draft for review
@@ -14,9 +14,12 @@ managers — Brown Shipley, WH Ireland, Pershing, and Castlebay. At the moment, 
 almost entirely by hand using a set of Excel workbooks. Data is copied and pasted between
 spreadsheets, reformatted, checked, and eventually loaded into the firm's downstream systems.
 
-This project — the **DFM Reconciliation Automation PoC** — replaces that manual process with
-an automated data pipeline. Once the PoC is running, what currently takes the best part of a
-working day will be reduced to a few minutes of preparation and a single button press.
+This project — the **DFM AI-Powered Reconciliation PoC** — replaces that manual process with
+an AI-augmented data pipeline. Once the PoC is running, what currently takes the best part of a
+working day will be reduced to a few minutes of preparation and a single button press. Beyond
+pure automation, the pipeline uses Azure OpenAI to assist at the edges of the process: when
+column layouts change unexpectedly, when security names don't quite match, and when the analyst
+needs a plain-English summary of what happened — not five separate reports to reconcile.
 
 ---
 
@@ -164,6 +167,9 @@ zone and triggers the pipeline. Everything else is automated.
 | **Safer data loading** | The pre-load quality gate means structurally invalid or incomplete data cannot reach ADS — the check that was previously manual and potentially skippable becomes a hard step |
 | **Easier exception management** | When a lookup gap or validation failure occurs, the output reports identify exactly which rows are affected and why, so analysts know precisely what to investigate |
 | **Scalable foundation** | Adding a fifth fund manager in the future requires a configuration update and a new ingestion notebook — not a redesign of the Excel workbook |
+| **Faster exception investigation** | When a security or policy name can't be matched automatically, the AI fuzzy matcher suggests the most likely candidates from the master list — the analyst confirms rather than searches |
+| **Proactive anomaly awareness** | Month-on-month portfolio movements that look statistically unusual are flagged automatically, rather than relying on an analyst to notice them in a table of numbers |
+| **Run at a glance** | At the end of every run, the pipeline produces a plain-English paragraph summarising what happened, what passed, what failed, and what needs attention — no need to open multiple report files |
 
 ---
 
@@ -206,14 +212,58 @@ The PoC is considered complete when the following outcomes are verified:
 
 ## What platform does it run on?
 
-The pipeline runs entirely within the firm's existing **Microsoft Fabric** workspace. No new
-infrastructure is needed beyond an active Fabric licence. Data is stored in Fabric's secure
-OneLake storage. Access is controlled by the existing workspace permissions — only the investment
-operations team and authorised technical staff can access the data.
+The pipeline runs entirely within the firm's existing **Microsoft Fabric** workspace, extended
+with **Azure OpenAI** for the AI capabilities. Both run within the firm's Microsoft 365 and
+Azure tenant — data does not leave the firm's environment. No new infrastructure is needed
+beyond an active Fabric licence and an Azure OpenAI resource provisioned via a standard Azure
+ARM template.
+
+Data is stored in Fabric's secure OneLake storage. Access is controlled by the existing
+workspace permissions — only the investment operations team and authorised technical staff can
+access the data.
 
 No credentials, passwords, or API keys are held in the pipeline code. All authenticated
-connections (including the ADS load) use Azure Managed Identity, which is a Microsoft-standard
-mechanism for secure service-to-service authentication.
+connections (including the ADS load and the Azure OpenAI calls) use Azure Managed Identity,
+which is a Microsoft-standard mechanism for secure service-to-service authentication.
+
+**An important note on AI and data:** only DFM-level aggregate totals (e.g. “WH Ireland total
+bid value £48.2m”) are sent to the Azure OpenAI service for anomaly analysis. Individual
+policy positions, security names, and policy references do not leave Fabric for LLM processing.
+The exception is the fuzzy matching step, which sends unresolved security/policy identifiers
+(internal reference codes, not personal data) to the embedding API to find lookup matches.
+
+---
+
+## How is AI used in this PoC?
+
+The PoC uses Azure OpenAI (GPT-4o and text-embedding-3-small) to augment the deterministic
+pipeline at the points where rules-based logic cannot give the analyst a useful answer:
+
+| Where AI helps | What it does | Why rules can’t do this |
+|---|---|---|
+| **When a fund manager changes their file layout** | Proposes a config update to re-map the new column names | Column name matching is ambiguous — “Settlement Ccy” and “CCY” are the same thing, but no rule knows that |
+| **When a security or policy can’t be found** | Suggests the most likely match from the master list, ranked by confidence | Name variations like “Vodafone Grp PLC” vs “Vodafone Group PLC” cannot be deterministically matched |
+| **After aggregation, every month** | Flags portfolio-level movements that look unusual vs prior months | Rules check individual rows; only AI has the cross-period context to say “that 40% drop looks unusual” |
+| **After validation, if failures exist** | Classifies each failure as expected or new | The analyst should only have to read the *new* failures each month, not re-triage the same known patterns |
+| **At the end of every run** | Writes a plain-English summary of what happened | The human reads one paragraph, not five separate report files |
+
+**What AI does not do:** AI never modifies the holdings data, the validation rules, the
+reconciliation totals, or the ADS load. All AI outputs are clearly labelled as AI-generated
+and are advisory only. The analyst remains in control of all decisions.
+
+---
+
+## A note on how this PoC was built
+
+This PoC was designed, specified, and documented using a GitHub Copilot agent fleet operating
+from structured specifications stored in the repository. The agents produced specs, data
+contracts, validation rules, runbooks, and this document — working from the requirements
+described in the engineering spec folder. Human review was applied to all financial logic.
+
+This means the PoC is not just *about* AI — it was *built using* AI as the primary engineering
+assistant. The repository structure is intentionally agent-native: work is defined in `specs/`,
+executed by agents declared in `agents/`, and verified against acceptance criteria in each
+task block.
 
 ---
 
