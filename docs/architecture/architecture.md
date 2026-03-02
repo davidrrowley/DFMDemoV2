@@ -12,7 +12,7 @@ For data flow diagrams see [data_flows.md](../../data_flows.md).
 
 ## Context and scope
 
-- **Four DFMs in scope**: Brown Shipley, WH Ireland, Pershing, Castlebay
+- **Four DFMs in PoC scope**: Brown Shipley, WH Ireland, Pershing, Castlebay. The architecture is designed to extend to additional DFMs (20+ total potential integrations globally) via config-driven parsing and DFM-agnostic downstream logic.
 - **One period per run** (`YYYY-MM`); multi-period backfill is out of scope
 - **Platform**: Microsoft Fabric (PySpark notebooks, Delta Lake, OneLake)
 - **Output contract**: 13-column `tpir_load_equivalent` schema (unchanged from existing tpir_load)

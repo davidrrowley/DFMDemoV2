@@ -35,6 +35,8 @@ Discretionary Fund Managers (DFMs) — Brown Shipley, WH Ireland, Pershing, and 
 Excel workbooks to produce a reconciliation report. This process is slow, error-prone, and leaves
 almost no audit trail.
 
+**PoC Scope Note:** This PoC implements support for these four DFMs as a proof of concept. The architecture is designed to support 20+ potential DFMs through extensible configuration, eliminating hard-coded supplier-specific logic and enabling rapid onboarding of additional fund managers.
+
 This Proof of Concept (PoC) replaces that manual process with an automated data pipeline built on
 **Microsoft Fabric**. In plain terms: instead of an analyst spending hours reformatting spreadsheets
 each month, a single button-press runs a notebook that ingests all four DFM files, checks the

@@ -14,6 +14,8 @@ managers — Brown Shipley, WH Ireland, Pershing, and Castlebay. At the moment, 
 almost entirely by hand using a set of Excel workbooks. Data is copied and pasted between
 spreadsheets, reformatted, checked, and eventually loaded into the firm's downstream systems.
 
+**Note on PoC scope:** This PoC focuses on these four DFMs as a representative sample. The broader global investment fund manager universe comprises 20+ potential DFM integrations. The architecture is designed to extend to additional DFMs following the same config-driven pattern demonstrated here.
+
 This project — the **DFM AI-Powered Reconciliation PoC** — replaces that manual process with
 an AI-augmented data pipeline. Once the PoC is running, what currently takes the best part of a
 working day will be reduced to a few minutes of preparation and a single button press. Beyond

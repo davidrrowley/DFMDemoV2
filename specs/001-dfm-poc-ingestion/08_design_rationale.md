@@ -184,6 +184,7 @@ A successful PoC run demonstrates:
 9. Acquisition cost unreliability does not block ingestion.
 10. Currency normalisation can be applied conservatively without guessing.
 11. MV_001 is demonstrably evaluable for WH Ireland, Pershing, and Castlebay.
+12. Config-driven architecture eliminates hard-coded DFM-specific logic, enabling rapid onboarding of additional DFMs (20+ potential integrations) without code changes.
 
 ---
 

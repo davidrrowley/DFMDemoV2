@@ -10,7 +10,7 @@
 
 The platform must ingest holdings data from all four DFMs for a given period.
 
-- **HR-01.1 Multi-DFM support:** The system must support ingestion from Brown Shipley (Notification + Cash CSV), WH Ireland (XLSX), Pershing (Positions + Valuation XLSX), and Castlebay (XLSX).
+- **HR-01.1 Multi-DFM support:** The system must support ingestion from Brown Shipley (Notification + Cash CSV), WH Ireland (XLSX), Pershing (Positions + Valuation XLSX), and Castlebay (XLSX). *(PoC scope: these four DFMs; the architecture supports additional DFMs via config-driven parsing extension.)*
 - **HR-01.2 File discovery:** The system must discover all source files in the landing zone path `/Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/` for a given period and DFM.
 - **HR-01.3 Config-driven parsing:** Column mappings, skip rows, sheet names, numeric conventions, and date formats must be driven by `raw_parsing_config.json`, not hard-coded in notebook logic.
 - **HR-01.4 Fault isolation:** A failure ingesting one DFM must not prevent other DFMs from being ingested. Failures must be caught, logged to `run_audit_log` with `status=FAILED`, and execution must continue.

@@ -4,6 +4,8 @@
 
 Build a fast PoC that ingests raw confirmation inputs from four DFMs (Brown Shipley, WH Ireland, Pershing, Castlebay), transforms them into a canonical holdings dataset, produces a `tpir_load` equivalent dataset, runs centralised validations, and outputs policy-level aggregates equivalent to the Excel Rec_Output totals.
 
+**PoC Scope:** This PoC focuses on these four DFMs as representative integrations. The architecture supports 20+ potential DFMs through config-driven design patterns documented in `raw_parsing_config.json` and `rules_config.json`.
+
 ## Key Constraints
 
 - Two evenings maximum
