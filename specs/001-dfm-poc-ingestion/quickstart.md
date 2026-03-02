@@ -21,11 +21,66 @@ Copy all files from `specs/001-dfm-poc-ingestion/config/` to `/Files/config/` in
 /Files/config/rules_config.json
 /Files/config/currency_mapping.json
 /Files/config/fx_rates.csv
+/Files/config/security_master.csv
+/Files/config/policy_mapping.csv
+/Files/config/ads_config.json
+/Files/config/azure_openai_config.json
 ```
 
 Use the Fabric UI (OneLake file explorer) or the Fabric REST API to upload.
 
-### 2. Create Delta tables
+Notes:
+- `azure_openai_config.json` is required only when enabling Phase 9 AI augmentation tasks.
+- `security_master.csv`, `policy_mapping.csv`, and `ads_config.json` are required for Phase 8 (TPIR + ADS load).
+
+### 2. Set up AI backend (Phase 9 only)
+
+If you plan to run Phase 9 AI augmentation (SC-13 to SC-17), choose your backend:
+
+#### Option A: GitHub Models API (Default, PoC-recommended)
+
+**Cost**: ~$5–20 for a complete PoC run.
+
+**Steps**:
+1. Create a [Personal Access Token](https://github.com/settings/tokens/new) on github.com with `api` scope.
+2. Edit `/Files/config/azure_openai_config.json`:
+   - Keep `use_github_models: true`
+   - Replace `TBD` in `github_token` with your token
+3. Upload the updated file to OneLake.
+
+**Verification**: In a notebook, run:
+
+```python
+import json
+with open('/lakehouse/default/Files/config/azure_openai_config.json', 'r') as f:
+    cfg = json.load(f)
+    print(f"Backend: {'GitHub Models' if cfg.get('use_github_models') else 'Azure OpenAI'}")
+```
+
+Output: `Backend: GitHub Models`
+
+#### Option B: Azure OpenAI (Optional, Production)
+
+**Cost**: ~$20–50/month for minimal capacity (covering PoC usage).
+
+Use this only if you have Azure credits or want to test production-scale infrastructure.
+
+**Steps**:
+1. Deploy the Bicep template:
+   ```bash
+   az deployment group create \
+     --resource-group <your-rg> \
+     --template-file infra/bicep/azure-openai.bicep \
+     --parameters environmentName=staging fabricWorkspaceObjectId=<mi-object-id>
+   ```
+2. After deployment, retrieve the endpoint and API key.
+3. Edit `/Files/config/azure_openai_config.json`:
+   - Set `use_github_models: false`
+   - Replace `endpoint` with the deployed URL
+   - Replace `api_key` with your key
+4. Upload the updated file to OneLake.
+
+### 3. Create Delta tables
 
 Run notebook `nb_setup` (or execute the table-creation cells manually). This creates all seven Delta tables in the Lakehouse:
 
@@ -44,6 +99,14 @@ spark.catalog.listTables()
 ```
 
 Confirm all seven names appear.
+
+---
+
+## Phase-gated enablement
+
+- Core PoC (`SC-01` to `SC-10`): requires `dfm_registry.json`, `raw_parsing_config.json`, `rules_config.json`, `currency_mapping.json`, and `fx_rates.csv`.
+- Phase 8 (`SC-11` to `SC-12`): additionally requires `security_master.csv`, `policy_mapping.csv`, and `ads_config.json`.
+- Phase 9 (`SC-13` to `SC-17`): additionally requires GitHub Models API token (default, no infrastructure) or optional Azure OpenAI from `infra/bicep/azure-openai.bicep` and `azure_openai_config.json`.
 
 ---
 
@@ -156,5 +219,7 @@ spark.read.table("run_audit_log") \
 | European decimal values parsed incorrectly (Brown Shipley) | `european_decimals` flag not set in config | Verify `raw_parsing_config.json` has `"european_decimals": true` for `brown_shipley` |
 | `report_date` is null for Castlebay rows | Filename does not match `DDMmmYY` pattern | Rename the file to match the expected pattern (e.g., `Cde OSB Val 31Dec25.xlsx`) |
 | Report CSVs not written | `nb_reports` was not run or failed | Run `nb_reports` manually with the correct `period` and `run_id` parameters |
+| ADS load step skipped or fails in Phase 8 | `ads_config.json` missing or malformed | Verify `/Files/config/ads_config.json` exists and fields match `16_ads_loading.md` |
+| AI notebooks skip or fail to call model in Phase 9 | `azure_openai_config.json` missing or incomplete | Verify `/Files/config/azure_openai_config.json` exists and includes keys from specs 17-21 |
 | Duplicate rows in `canonical_holdings` after re-run | MERGE upsert not working | Verify `row_hash` column is non-null; check for null values in hash-key source fields |
 | `MV_001` shows no events for WH Ireland | Validation notebook not run, or `MV_001` disabled | Check `rules_config.json` has `"enabled": true` for `MV_001`; re-run `nb_validate` |

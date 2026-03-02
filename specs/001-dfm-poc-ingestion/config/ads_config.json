@@ -1,0 +1,8 @@
+{
+  "base_url": "https://ads.internal.example.com",
+  "api_version": "v1",
+  "batch_size": 500,
+  "timeout_seconds": 60,
+  "retry_max_attempts": 3,
+  "retry_backoff_seconds": 5
+}

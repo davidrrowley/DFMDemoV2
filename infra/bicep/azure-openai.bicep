@@ -7,6 +7,22 @@
 //     --resource-group <rg> \
 //     --template-file infra/bicep/azure-openai.bicep \
 //     --parameters environmentName=staging fabricWorkspaceObjectId=<objectId>
+//
+// NOTE: For the DFM PoC, this template is OPTIONAL.
+// By default, the PoC uses GitHub Models API for Phase 9 AI features (SC-13 to SC-17).
+// This Bicep template is recommended only for PRODUCTION deployments requiring
+// higher throughput and dedicated capacity.
+//
+// To use GitHub Models for the PoC:
+//   1. Set use_github_models=true in azure_openai_config.json
+//   2. Provide a GitHub Personal Access Token
+//   3. Skip running this Bicep deployment
+//
+// To switch to Azure OpenAI after PoC:
+//   1. Deploy this Bicep template
+//   2. Set use_github_models=false in azure_openai_config.json
+//   3. Update endpoint and api_key from the deployed resource
+//
 
 @description('Environment name (staging or production).')
 @allowed(['staging', 'production'])
