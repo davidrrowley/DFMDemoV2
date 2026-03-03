@@ -1,0 +1,5 @@
+dfm_id,policy_id,exclusion_reason,status,effective_from,notes
+brown_shipley,EXAMPLE-001,CLOSED_ACCOUNT,active,2026-01-01,Example exclusion - replace with real data
+pershing,EXAMPLE-002,DUPLICATE_ACCOUNT,active,2026-01-01,Example exclusion - replace with real data
+castlebay,EXAMPLE-003,TEST_ACCOUNT,active,2026-01-01,Example exclusion - replace with real data
+wh_ireland,EXAMPLE-004,ZERO_VALUE_DORMANT,active,2026-01-01,Example exclusion - replace with real data
