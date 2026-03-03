@@ -68,7 +68,7 @@ Inbound formats vary across DFMs but are stable per DFM.
 
 **Design decision:** Use a DFM-specific extractor layer with a shared canonical model. All DFM
 differences are isolated to extractor config and extractor functions. Everything after
-`canonical_holdings` is common.
+`individual_dfm_consolidated` is common.
 
 ---
 
@@ -193,7 +193,7 @@ A successful PoC run demonstrates:
 The PoC is complete when all of the following hold:
 
 - All four DFMs ingest successfully from raw files in the landing zone.
-- `canonical_holdings` is populated with non-zero rows for all four DFMs.
+- `individual_dfm_consolidated` is populated with non-zero rows for all four DFMs.
 - `tpir_load_equivalent` matches the 13-column tpir_load schema.
 - `policy_aggregates` is computed for all four DFMs.
 - `MV_001` is evaluable for WH Ireland, Pershing, and Castlebay.

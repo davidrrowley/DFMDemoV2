@@ -1,121 +1,107 @@
-# 02 — Data Contracts
+# 02 - Data Contracts
 
-## Canonical Table: `canonical_holdings` (Delta)
+## Stage 1 Contract: `source_dfm_raw`
 
-Required columns:
+Required fields:
 
 | Column | Type | Notes |
-|--------|------|-------|
+|---|---|---|
 | `period` | string | YYYY-MM |
-| `run_id` | string | UTC timestamp |
-| `dfm_id` | string | |
-| `dfm_name` | string | |
-| `source_file` | string | |
-| `source_sheet` | string | nullable |
-| `source_row_id` | string | |
-| `policy_id` | string | |
-| `policy_id_type` | string | DFM or IH |
-| `dfm_policy_id` | string | nullable, for traceability |
-| `security_id` | string | nullable |
-| `isin` | string | nullable |
-| `other_security_id` | string | nullable |
-| `id_type` | string | nullable |
-| `asset_name` | string | nullable |
-| `holding` | decimal | |
-| `local_bid_price` | decimal | |
-| `local_currency` | string | |
-| `fx_rate` | decimal | nullable |
-| `cash_value_gbp` | decimal | default 0 |
-| `bid_value_gbp` | decimal | nullable if cannot compute |
-| `accrued_interest_gbp` | decimal | default 0 |
-| `report_date` | date | nullable |
-| `ingested_at` | timestamp | |
-| `data_quality_flags` | array\<string\> | |
+| `run_id` | string | UTC run ID |
+| `dfm_id` | string | DFM key |
+| `profile_id` | string | Adapter profile key |
+| `source_file` | string | Filename |
+| `source_sheet` | string | Nullable |
+| `source_row_id` | string | Source row pointer |
+| `raw_record_json` | string | Full source record |
+| `parse_status` | string | `ok`, `partial`, `error` |
+| `ingested_at` | timestamp | Ingestion time |
 
-## Output Table: `tpir_load_equivalent` (Delta)
+## Stage 2 Contract: `individual_dfm_consolidated`
 
-Schema must match the templates' tpir_load header:
-
-| Column |
-|--------|
-| `Policyholder_Number` |
-| `Security_Code` |
-| `ISIN` |
-| `Other_Security_ID` |
-| `ID_Type` |
-| `Asset_Name` |
-| `Acq_Cost_in_GBP` |
-| `Cash_Value_in_GBP` |
-| `Bid_Value_in_GBP` |
-| `Accrued_Interest` |
-| `Holding` |
-| `Loc_Bid_Price` |
-| `Currency_Local` |
-
-## Output Table: `policy_aggregates` (Delta)
-
-Group by: `period`, `run_id`, `dfm_id`, `policy_id`
-
-Compute:
-- `total_cash_value_gbp`
-- `total_bid_value_gbp`
-- `total_accrued_interest_gbp`
-
-These correspond to the Excel Rec_Output SUMIFS totals for cash/bid/accrued.
-
-## Table: `validation_events` (Delta)
+Required fields:
 
 | Column | Type | Notes |
-|--------|------|-------|
+|---|---|---|
+| `period` | string | YYYY-MM |
+| `run_id` | string | UTC run ID |
+| `dfm_id` | string | DFM key |
+| `profile_id` | string | Adapter profile key |
+| `source_file` | string | Provenance |
+| `source_row_id` | string | Provenance |
+| `row_hash` | string | Deterministic dedup key |
+| `policyholder_number` | string | Nullable |
+| `security_code` | string | Nullable |
+| `isin` | string | Nullable |
+| `sedol` | string | Nullable |
+| `other_security_id` | string | Nullable |
+| `id_type` | string | Nullable |
+| `asset_name` | string | Nullable |
+| `holding` | decimal | Required |
+| `local_bid_price` | decimal | Nullable |
+| `local_currency` | string | Nullable |
+| `fx_rate` | decimal | Nullable |
+| `cash_value_gbp` | decimal | Required |
+| `bid_value_gbp` | decimal | Nullable |
+| `accrued_interest_gbp` | decimal | Required |
+| `include_flag` | string | `Include` or `Remove` |
+| `exclusion_reason_code` | string | Nullable |
+| `identifier_chosen` | string | Nullable |
+| `decision_trace_json` | string | Nullable |
+| `data_quality_flags` | array<string> | Required |
+
+## Stage 3 Contract: `aggregated_dfms_consolidated`
+
+Required fields:
+
+| Column | Type | Notes |
+|---|---|---|
+| `period` | string | YYYY-MM |
+| `run_id` | string | UTC run ID |
+| `dfm_id` | string | Source DFM key |
+| `policyholder_number` | string | Nullable |
+| `security_code` | string | Nullable |
+| `isin` | string | Nullable |
+| `sedol` | string | Nullable |
+| `asset_name` | string | Nullable |
+| `holding` | decimal | Required |
+| `cash_value_gbp` | decimal | Required |
+| `bid_value_gbp` | decimal | Nullable |
+| `accrued_interest_gbp` | decimal | Required |
+| `source_count` | int | Required |
+| `published_at` | timestamp | Required |
+
+## Gate Output Contracts
+
+### `dq_results`
+
+| Column | Type | Notes |
+|---|---|---|
 | `period` | string | |
 | `run_id` | string | |
-| `event_time` | timestamp | |
 | `dfm_id` | string | |
-| `dfm_name` | string | |
-| `policy_id` | string | |
-| `security_id` | string | nullable |
-| `rule_id` | string | |
-| `severity` | string | stop, exception, or warning |
-| `status` | string | fail or not_evaluable |
-| `details_json` | string | JSON-encoded details |
-| `source_file` | string | nullable |
+| `check_id` | string | |
+| `severity` | string | `warning`, `exception`, `stop` |
+| `status` | string | `pass`, `fail`, `not_evaluable` |
+| `metric_value` | double | Nullable |
+| `threshold_value` | double | Nullable |
+| `details_json` | string | JSON details |
+| `evaluated_at` | timestamp | |
 
-## Governance Tables
+### `dq_exception_rows`
 
-### `run_audit_log` (Delta)
+| Column | Type | Notes |
+|---|---|---|
+| `period` | string | |
+| `run_id` | string | |
+| `dfm_id` | string | |
+| `check_id` | string | |
+| `source_file` | string | |
+| `source_row_id` | string | |
+| `failure_reason` | string | |
+| `details_json` | string | JSON context |
+| `created_at` | timestamp | |
 
-| Column | Type |
-|--------|------|
-| `run_id` | string |
-| `period` | string |
-| `dfm_id` | string |
-| `files_processed` | int |
-| `rows_ingested` | int |
-| `parse_errors_count` | int |
-| `drift_events_count` | int |
-| `status` | string |
-| `started_at` | timestamp |
-| `completed_at` | timestamp |
+## Downstream Output Contract
 
-### `schema_drift_events` (Delta)
-
-| Column | Type |
-|--------|------|
-| `run_id` | string |
-| `dfm_id` | string |
-| `source_file` | string |
-| `column_name` | string |
-| `drift_type` | string |
-| `detected_at` | timestamp |
-
-### `parse_errors` (Delta)
-
-| Column | Type |
-|--------|------|
-| `run_id` | string |
-| `dfm_id` | string |
-| `source_file` | string |
-| `source_row_id` | string |
-| `error_message` | string |
-| `raw_value` | string |
-| `detected_at` | timestamp |
+`tpir_load_equivalent` remains compatible with the existing 13-column downstream schema.

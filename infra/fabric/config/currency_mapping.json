@@ -1,0 +1,15 @@
+{
+  "castlebay": {
+    "Pound Sterling": "GBP",
+    "US Dollar": "USD",
+    "Euro": "EUR",
+    "Japanese Yen": "JPY",
+    "Swiss Franc": "CHF",
+    "Canadian Dollar": "CAD",
+    "Australian Dollar": "AUD",
+    "Hong Kong Dollar": "HKD",
+    "Norwegian Krone": "NOK",
+    "Swedish Krona": "SEK",
+    "Danish Krone": "DKK"
+  }
+}

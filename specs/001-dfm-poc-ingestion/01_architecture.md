@@ -1,55 +1,40 @@
-# 01 — Architecture
+# 01 - Architecture
 
 ## Logical Pipeline
 
-1. Landing zone → discover files per DFM
-2. Parse raw files → DFM staging
-3. Map and normalise → `canonical_holdings`
-4. Generate `tpir_load_equivalent`
-5. Aggregate → `policy_aggregates`
-6. Validate → `validation_events`
-7. Produce reports + audit + recon artefacts
-
-## Implementation Target (PoC)
-
-Microsoft Fabric:
-
-- One Lakehouse
-- Notebooks (PySpark) for ingestion + validation + reporting
-- Optional Pipeline wrapper
+1. Stage 1: discover and persist source rows to `source_dfm_raw`.
+2. Stage 2: adapter-profile standardization to `individual_dfm_consolidated`.
+3. Stage 2 gate: execute controls and write `dq_results` + `dq_exception_rows`.
+4. Stage 3: publish gate-passing rows to `aggregated_dfms_consolidated`.
+5. Project downstream outputs: `policy_aggregates` and `tpir_load_equivalent`.
 
 ## Design Principle
 
-DFM differences are isolated to extractor config and extractor functions. Everything after `canonical_holdings` is common.
+DFM/file-type variation is configuration-led through adapter profiles. Shared downstream logic remains DFM-agnostic.
 
 ## Folder Structure
 
-```
+```text
 /Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/*
 /Files/config/*
 /Files/output/period=YYYY-MM/run_id=<run_id>/*
 ```
 
-## Notebook Structure
+## Notebook Responsibilities
 
 | Notebook | Purpose |
-|----------|---------|
-| `nb_run_all` | Entrypoint; accepts `period` parameter; generates `run_id`; invokes DFM notebooks in sequence |
-| `nb_ingest_brown_shipley` | Brown Shipley ingestion |
-| `nb_ingest_wh_ireland` | WH Ireland ingestion |
-| `nb_ingest_pershing` | Pershing ingestion |
-| `nb_ingest_castlebay` | Castlebay ingestion |
-| `nb_validate` | Validation rules engine |
-| `nb_aggregate` | policy_aggregates + tpir_load_equivalent |
-| `nb_reports` | Report 1 + Report 2 + reconciliation summary |
+|---|---|
+| `nb_run_all` | Entrypoint and stage orchestration |
+| `nb_ingest_brown_shipley` | Stage 1 + Stage 2 adapter execution for Brown Shipley |
+| `nb_ingest_wh_ireland` | Stage 1 + Stage 2 adapter execution for WH Ireland |
+| `nb_ingest_pershing` | Stage 1 + Stage 2 adapter execution for Pershing |
+| `nb_ingest_castlebay` | Stage 1 + Stage 2 adapter execution for Castlebay |
+| `nb_validate` | Gate checks and exception outputs |
+| `nb_aggregate` | Stage 3 consolidation and output projection |
+| `nb_reports` | Reconciliation and run reporting |
 
-## Shared Library
+## Stage Gate Policy
 
-Common functions extracted to a shared module:
-
-- `parse_numeric(value, european=False)` — supports both UK/US and European decimal styles
-- `parse_date(value)` — supports dd-MMM-yyyy, dd/MM/yyyy, ISO datetime, filename inference
-- `apply_fx(local_value, local_currency, fx_rates)` — FX conversion to GBP
-- `row_hash(df, cols)` — de-duplication hash
-- `emit_validation_event(...)` — write to `validation_events`
-- `emit_audit(dfm_id, run_id, ...)` — write to `run_audit_log`
+- Stage 1 gate: parse and persistence complete, with diagnostics captured.
+- Stage 2 gate: required controls evaluated and persisted.
+- Stage 3 gate: publish blocked for rows that fail required severity rules.

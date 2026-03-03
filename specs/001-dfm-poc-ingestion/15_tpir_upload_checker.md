@@ -94,9 +94,9 @@ Rows whose policy appears in `policy_mapping.csv` with `status = REMOVE` must no
 
 ---
 
-### TC-007 — Row count matches canonical_holdings (warning)
+### TC-007 — Row count matches individual_dfm_consolidated (warning)
 
-The row count of `tpir_load_equivalent` for this `run_id` must equal the row count of `canonical_holdings` for the same `run_id`.
+The row count of `tpir_load_equivalent` for this `run_id` must equal the row count of `individual_dfm_consolidated` for the same `run_id`.
 
 **Fail condition**: Counts differ by more than 0 rows.
 
@@ -119,7 +119,7 @@ Written to `/Files/output/period=YYYY-MM/run_id=<run_id>/tpir_check_result.json`
   "warnings": [
     {
       "rule": "TC-007",
-      "message": "tpir_load_equivalent row count (1842) differs from canonical_holdings (1842) — counts match",
+      "message": "tpir_load_equivalent row count (1842) differs from individual_dfm_consolidated (1842) — counts match",
       "count": 0
     }
   ]

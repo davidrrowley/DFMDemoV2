@@ -1,40 +1,39 @@
-# 00 — Overview
+# 00 - Overview
 
 ## Objective
 
-Build a fast PoC that ingests raw confirmation inputs from four DFMs (Brown Shipley, WH Ireland, Pershing, Castlebay), transforms them into a canonical holdings dataset, produces a `tpir_load` equivalent dataset, runs centralised validations, and outputs policy-level aggregates equivalent to the Excel Rec_Output totals.
+Implement a profile-driven ingestion feature that standardizes heterogeneous DFM source files into a stable contract and then consolidates across DFMs.
 
-**PoC Scope:** This PoC focuses on these four DFMs as representative integrations. The architecture supports 20+ potential DFMs through config-driven design patterns documented in `raw_parsing_config.json` and `rules_config.json`.
+Target operating model:
 
-## Key Constraints
+1. `source DFM raw files`
+2. `individual_dfm_consolidated`
+3. `aggregated_dfms_consolidated`
 
-- Two evenings maximum
-- AI-assisted development using Copilot is assumed
-- Core finance calculations must be deterministic; AI may assist with drift detection and narrative only
+## Scope
 
-## Out of Scope
-
-- Full replacement of Excel templates in production
-- Enterprise-grade ops (CI/CD, full alerting, retries)
-- Bank holiday working day calendars (weekend-only PoC)
+- Current PoC DFMs: Brown Shipley, WH Ireland, Pershing, Castlebay.
+- Future scale target: up to 60 DFMs via adapter-profile config.
+- Each DFM may provide one or more files per period with different formats.
 
 ## Success Criteria
 
-A single "run" produces:
-- `canonical_holdings` (row-level)
-- `tpir_load_equivalent` (standardised output schema)
-- `policy_aggregates` (cash/bid/accrued totals by DFM+policy)
-- `validation_events` (rule failures and not-evaluable records)
-- Report 1 per DFM + Report 2 roll-up
-- Audit + reconciliation summary
+- Stage 1: all discovered source rows are persisted with provenance and parse outcomes.
+- Stage 2: each enabled DFM emits contract-conformant `individual_dfm_consolidated` rows.
+- Stage 2 controls: deterministic checks are captured in `dq_results` and `dq_exception_rows`.
+- Stage 3: only gate-passing Stage 2 rows are published to `aggregated_dfms_consolidated`.
+- Downstream compatibility: `tpir_load_equivalent` remains contract-compatible.
 
-Output schema matches the templates' tpir_load contract. MV check is demonstrable for at least WH Ireland, Pershing, Castlebay (and Brown Shipley if feasible).
+## Out of Scope
+
+- Full production hardening and CI/CD automation.
+- Full workbook UX replication.
+- Non-deterministic AI decisions in publish paths.
 
 ## Baseline Acceptance Checklist
 
-- A repo folder with the specs above and config files created
-- A Fabric Lakehouse with Delta tables: `canonical_holdings`, `tpir_load_equivalent`, `policy_aggregates`, `validation_events`, `run_audit_log`, `schema_drift_events`, `parse_errors`
-- A single notebook run for one period that ingests: Brown Shipley Notification + Cash, WH Ireland XLSX, Pershing Positions + Valuation holdings, Castlebay XLSX
-- `policy_aggregates` computed for all four DFMs
-- `MV_001` implemented and evaluable for WH Ireland + Pershing + Castlebay
-- Report 1 per DFM + Report 2 roll-up written to OneLake
+- Config artifacts define DFM profile behavior (file role, parsing, mapping, identifier priority).
+- Stage contracts are documented and versioned in `contracts/schemas.yaml`.
+- One end-to-end period run completes across all enabled DFMs.
+- Gate outcomes and exceptions are persisted and auditable.
+- Consolidated outputs are generated from gate-approved records only.

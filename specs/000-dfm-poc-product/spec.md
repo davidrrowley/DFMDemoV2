@@ -1,6 +1,6 @@
 # DFM PoC Ingestion — Product Spec
 
-**Product:** DFM PoC Ingestion Platform  
+**Product:** DFM Ingestion and Standardisation Platform  
 **Product folder:** `specs/000-dfm-poc-product/`  
 **Feature folder:** `specs/001-dfm-poc-ingestion/`  
 **Status:** Draft  
@@ -10,45 +10,58 @@
 
 ## Objective
 
-Build a fast, auditable Proof of Concept that replaces manual Excel-based DFM reconciliation with
-an automated Microsoft Fabric pipeline. The pipeline ingests raw confirmation inputs from four
-Discretionary Fund Managers (Brown Shipley, WH Ireland, Pershing, Castlebay), transforms them into
-a canonical holdings dataset, runs centralised validations, and produces policy-level aggregates and
-reports equivalent to the existing Excel Rec_Output templates.
+Build an auditable ingestion and standardisation product for heterogeneous DFM inputs.
+
+The core operating model is:
+
+1. `source DFM raw files`
+2. `individual_dfm_consolidated` template
+3. `aggregated_dfms_consolidated` template
+
+This PoC validates the model for four DFMs today and establishes a configuration-led pattern to onboard up to 60 DFMs without rewriting core pipeline logic.
 
 ---
 
 ## Context
 
-Investment operations teams currently ingest DFM data by manually copying and reformatting files
-from four DFMs into Excel workbooks. This process is:
-- **Time-consuming:** Monthly reconciliation requires significant manual effort per DFM.
-- **Error-prone:** Different numeric conventions (UK/US vs European), date formats, and column names
-  create mapping errors.
-- **Non-auditable:** No automated record of which files were used, how values were transformed, or
-  which rows were excluded.
+Investment operations currently rely on manual workbook flows to normalize DFM files before reconciliation and downstream publication. The current process is:
 
-The PoC demonstrates that an automated, auditable pipeline is achievable within the two-evening
-budget using Microsoft Fabric and AI-assisted development.
+- Time-consuming: repetitive monthly transformations per DFM.
+- Error-prone: file format and heading differences vary by DFM and by file type.
+- Hard to govern: no robust lineage for parsing, mapping, exclusion, and inclusion decisions.
+
+Workbook logic still matters, but it now acts as one reference implementation of Stage 2 behavior, not the architecture for the full product.
+
+---
+
+## Stage Model
+
+| Stage | Contract | Purpose |
+|---|---|---|
+| Stage 1 | `source DFM raw files` | Persist every supplied file and row with provenance; minimal assumptions |
+| Stage 2 | `individual_dfm_consolidated` | Standardise each DFM into a shared canonical contract via adapter profiles |
+| Stage 3 | `aggregated_dfms_consolidated` | Union and control across DFMs for downstream stability and reporting |
 
 ---
 
 ## Success Criteria
 
-A PoC run for a single period (`YYYY-MM`) is considered successful when:
+A PoC run for one period (`YYYY-MM`) is successful when all stage gates pass.
 
 | # | Criterion |
 |---|---|
-| SC-01 | `nb_run_all` completes for one period without unrecoverable errors |
-| SC-02 | `canonical_holdings` contains row-level data for all four DFMs |
-| SC-03 | `tpir_load_equivalent` schema matches the existing tpir_load contract |
-| SC-04 | `policy_aggregates` totals are comparable to Excel Rec_Output for all four DFMs |
-| SC-05 | `MV_001` is evaluable for WH Ireland, Pershing, and Castlebay |
-| SC-06 | `report1_<dfm_id>.csv` exists for all four DFMs in the output folder |
-| SC-07 | `report2_rollup.csv` and `reconciliation_summary.json` exist in the output folder |
-| SC-08 | `run_audit_log` has one row per DFM with correct status and row counts |
-| SC-09 | Re-running the same period does not duplicate `canonical_holdings` rows |
-| SC-10 | Disabling one DFM in `dfm_registry.json` does not break the run for other DFMs |
+| SC-01 | `nb_run_all` completes one period without unrecoverable orchestration error |
+| SC-02 | Stage 1 persists all discovered files/rows for enabled DFMs with provenance |
+| SC-03 | Stage 2 produces `individual_dfm_consolidated` for each enabled DFM using profile config only |
+| SC-04 | Stage 2 contract includes required lineage and transformation-decision metadata |
+| SC-05 | Stage 2 validation pack writes deterministic check outcomes and exception rows |
+| SC-06 | Stage 3 produces `aggregated_dfms_consolidated` from gate-passing Stage 2 rows only |
+| SC-07 | `tpir_load_equivalent` schema remains compatible with existing downstream contract |
+| SC-08 | Policy-level totals are comparable to workbook outputs within agreed tolerance |
+| SC-09 | `run_audit_log` includes one row per DFM with stage-level status and counts |
+| SC-10 | Re-running the same period is idempotent (no duplicate Stage 2 rows) |
+| SC-11 | Disabling one DFM or profile does not block other enabled DFMs |
+| SC-12 | Onboarding a new DFM is achievable through registry + profile + mapping config updates |
 
 ---
 
@@ -56,20 +69,20 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Constraint | Value |
 |---|---|
-| Time budget | 2 evenings maximum (~7 hours total; see `roadmap.md` for phase breakdown) |
+| Time budget | 2 evenings maximum for initial PoC baseline |
 | Platform | Microsoft Fabric (PySpark notebooks + Delta Lake) |
 | Development approach | AI-assisted (GitHub Copilot); finance calculations human-reviewed |
-| Finance calculation determinism | Must be deterministic; no AI-generated arithmetic in production paths |
-| Out of scope | Production ops, CI/CD, bank holiday calendars, full Excel template replacement |
+| Deterministic finance logic | Required in all stage-gate and publication paths |
+| Out of scope | Full production hardening, enterprise CI/CD, complete workbook UX replacement |
 
 ---
 
 ## Platform
 
-- **Compute:** Microsoft Fabric — PySpark Notebooks
-- **Storage:** Microsoft Fabric Lakehouse (OneLake + Delta Lake)
-- **Orchestration:** `nb_run_all` notebook with optional Fabric Pipeline wrapper
-- **Config:** JSON files in `/Files/config/` on OneLake
+- Compute: Microsoft Fabric PySpark notebooks
+- Storage: Microsoft Fabric Lakehouse (OneLake + Delta Lake)
+- Orchestration: `nb_run_all` with optional Fabric Pipeline wrapper
+- Config: profile and rules metadata in `/Files/config/`
 
 ---
 
@@ -77,22 +90,25 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Feature | Description | Owner | Spec |
 |---|---|---|---|
-| F01 — DFM Ingestion Pipeline | File discovery, parsing, normalisation, GBP conversion, de-duplication → `canonical_holdings` | `app-python` | `specs/001-dfm-poc-ingestion/` |
-| F02 — Validation Engine | DATE_001, MV_001, VAL_001, MAP_001 → `validation_events` | `app-python` | `specs/001-dfm-poc-ingestion/05_validations.md` |
-| F03 — Aggregation & Output | `policy_aggregates`, `tpir_load_equivalent`, Report 1, Report 2, recon summary | `app-python` | `specs/001-dfm-poc-ingestion/06_outputs_and_reports.md` |
-| F04 — Audit & Governance | `run_audit_log`, `parse_errors`, `schema_drift_events` | `app-python` | `specs/001-dfm-poc-ingestion/07_audit_and_recon.md` |
+| F01 — Adapter-Profile Ingestion | Stage 1 to Stage 2 standardisation by DFM/file-type profile | `app-python` | `specs/001-dfm-poc-ingestion/` |
+| F02 — Validation and Gates | Deterministic controls and stage-gate outcomes | `app-python` | `specs/001-dfm-poc-ingestion/05_validations.md` |
+| F03 — Consolidation and Outputs | Stage 3 aggregation and downstream projections | `app-python` | `specs/001-dfm-poc-ingestion/06_outputs_and_reports.md` |
+| F04 — Audit and Governance | Run-level and row-level observability across all stages | `app-python` | `specs/001-dfm-poc-ingestion/07_audit_and_recon.md` |
 
 ---
 
-## Delta Tables Produced
+## Core Tables
 
 | Table | Type | Purpose |
 |---|---|---|
-| `canonical_holdings` | Delta (partitioned by period, dfm_id) | Normalised row-level holdings |
-| `tpir_load_equivalent` | Delta | Output matching tpir_load contract |
-| `policy_aggregates` | Delta | Cash/bid/accrued totals by DFM + policy |
-| `validation_events` | Delta | Rule evaluation results |
-| `run_audit_log` | Delta | Per-DFM per-run audit row |
+| `source_dfm_raw` | Delta | Stage 1 normalized raw landing persistence with provenance |
+| `individual_dfm_consolidated` | Delta | Stage 2 canonical contract per DFM |
+| `aggregated_dfms_consolidated` | Delta | Stage 3 consolidated holdings across DFMs |
+| `tpir_load_equivalent` | Delta | Downstream consumer contract projection |
+| `policy_aggregates` | Delta | Policy-level cash/bid/accrued totals |
+| `dq_results` | Delta | Stage-gate rule outcomes |
+| `dq_exception_rows` | Delta | Failing row pointers and reason context |
+| `run_audit_log` | Delta | Per-DFM per-run and per-stage audit state |
 | `schema_drift_events` | Delta | Schema changes in source files |
 | `parse_errors` | Delta | Row-level parse failures |
 
@@ -103,10 +119,10 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 | File | Description |
 |---|---|
 | [product-vision.md](product-vision.md) | Problem space, target users, desired outcome |
-| [architecture.md](architecture.md) | Logical pipeline, notebooks, folder structure, design principles |
-| [data-model.md](data-model.md) | Delta table schemas, validation rules, relationships |
-| [high-level-requirements.md](high-level-requirements.md) | Functional and non-functional requirements (HR-01 to HR-09) |
-| [feature-map.md](feature-map.md) | Feature boundaries, ownership, requirement mapping |
+| [architecture.md](architecture.md) | Stage architecture, notebook responsibilities, design principles |
+| [data-model.md](data-model.md) | Stage contracts, schema model, and relationships |
+| [high-level-requirements.md](high-level-requirements.md) | Functional and non-functional requirements |
+| [feature-map.md](feature-map.md) | Feature boundaries and ownership |
 | [roadmap.md](roadmap.md) | Phase-based delivery sequencing |
 | [nfr.md](nfr.md) | Non-functional requirements detail |
 | [security-baseline.md](security-baseline.md) | PoC threat model and security controls |
@@ -119,4 +135,4 @@ A PoC run for a single period (`YYYY-MM`) is considered successful when:
 
 | Folder | Description |
 |---|---|
-| [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) | All four feature specs, DFM mappings, config definitions |
+| [specs/001-dfm-poc-ingestion/](../001-dfm-poc-ingestion/) | Detailed ingestion, validation, consolidation, and config contracts |

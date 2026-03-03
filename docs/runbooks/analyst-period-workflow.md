@@ -193,7 +193,7 @@ If any of the following were resolved after the initial run (new ISIN added to s
 
 1. Re-upload the updated config file to `/Files/config/`.
 2. Re-run `nb_run_all` with the same `period` parameter.
-3. The pipeline is **idempotent**: re-running does not duplicate rows in `canonical_holdings` (SHA-256 row-hash MERGE). It does create a new `run_id` and new output files.
+3. The pipeline is **idempotent**: re-running does not duplicate rows in `individual_dfm_consolidated` (SHA-256 row-hash MERGE). It does create a new `run_id` and new output files.
 4. After re-run, repeat the post-run review steps above.
 
 ---

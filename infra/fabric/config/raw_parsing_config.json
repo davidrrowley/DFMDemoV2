@@ -1,22 +1,18 @@
 {
   "brown_shipley": {
-    "profile_id": "brown_shipley_positions_cash_v1",
-    "profile_version": "1.0.0",
     "file_type": "csv",
     "roles": ["positions", "cash"],
+    "header_detection": true,
+    "european_decimals": true,
     "role_filename_patterns": {
       "positions": ["Notification.csv"],
       "cash": ["Notification - Cash.csv"]
     },
-    "header_detection": true,
-    "european_decimals": true,
-    "identifier_priority": ["sedol", "isin", "security_code", "other_security_id"],
-    "policy_join_keys": ["Client ID"],
     "column_mapping": {
       "positions": {
         "policy_id": "Client ID",
         "report_date": "Value Date",
-        "isin": "ISIN",
+        "security_id": "ISIN",
         "bid_value_local": "Balance",
         "accrued_interest_local": "Accrued Interest"
       },
@@ -27,12 +23,8 @@
     }
   },
   "wh_ireland": {
-    "profile_id": "wh_ireland_positions_v1",
-    "profile_version": "1.0.0",
     "file_type": "xlsx",
     "roles": ["positions"],
-    "identifier_priority": ["sedol", "isin", "security_code", "other_security_id"],
-    "policy_join_keys": ["Account Number"],
     "sheet_required_columns": [
       "Position as of Date",
       "Account Number",
@@ -56,12 +48,8 @@
     }
   },
   "pershing": {
-    "profile_id": "pershing_positions_valuation_v1",
-    "profile_version": "1.0.0",
     "file_type": "csv",
     "roles": ["positions_credo", "valuation_native"],
-    "identifier_priority": ["sedol", "isin", "security_code", "other_security_id"],
-    "policy_join_keys": ["AccountNumber", "PortfolioNumber", "PSLAccountReference"],
     "role_filename_patterns": {
       "positions_credo": ["Positions.csv"],
       "valuation_native": ["PSL_Valuation_Holdings_*.csv"]
@@ -93,12 +81,8 @@
     }
   },
   "castlebay": {
-    "profile_id": "castlebay_positions_v1",
-    "profile_version": "1.0.0",
     "file_type": "xlsx",
     "roles": ["positions"],
-    "identifier_priority": ["sedol", "isin", "security_code", "other_security_id"],
-    "policy_join_keys": ["Account Name"],
     "sheets": {
       "include_name_contains_any": ["customer 1", "customer 2"],
       "header_row_index_1based": 3

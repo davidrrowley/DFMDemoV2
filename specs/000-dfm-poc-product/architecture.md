@@ -1,55 +1,30 @@
-# Architecture: DFM PoC Ingestion Platform
+# Architecture: DFM Ingestion and Standardisation Platform
 
-> **Scope:** System boundaries, key components, logical pipeline, and design principles.
-> Individual feature specs (specs/001-dfm-poc-ingestion/) detail notebook behaviour and DFM mappings.
+> **Scope:** System boundaries, stage model, and design principles for a multi-DFM ingestion product.
 
-## Logical Pipeline
+## Logical Pipeline (Three Stages)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  OneLake Landing Zone                                                    │
-│  /Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/*                   │
+│ Stage 1: source DFM raw files                                          │
+│ /Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/*                    │
+│ Persist all files/rows with provenance and parse diagnostics            │
 └───────────────────────────┬─────────────────────────────────────────────┘
-                            │ file discovery
+                            │ adapter profile execution
                             ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  DFM Ingestion Notebooks  (one per DFM)                                 │
-│  nb_ingest_brown_shipley  │  nb_ingest_wh_ireland                       │
-│  nb_ingest_pershing       │  nb_ingest_castlebay                        │
-│                                                                         │
-│  Parse raw files per dfm config → map to canonical schema               │
-│  Apply GBP conversion, row-hash de-duplication                          │
-│  Emit parse_errors + schema_drift_events                                │
+│ Stage 2: individual_dfm_consolidated                                   │
+│ Profile-driven standardisation to canonical contract                    │
+│ Identifier selection, policy mapping, currency normalisation,           │
+│ include/remove decisions, row-level controls                            │
 └───────────────────────────┬─────────────────────────────────────────────┘
-                            │ write
+                            │ stage gate (dq_results)
                             ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Delta Table: canonical_holdings                                         │
-│  (normalised, GBP-equivalent, all DFMs, all policies)                   │
-└───────────┬────────────────────────────────────────────────────────────┘
-            │                              │
-            ▼                              ▼
-┌───────────────────────┐    ┌──────────────────────────────┐
-│  nb_validate          │    │  nb_aggregate                │
-│  MV_001, DATE_001,    │    │  policy_aggregates           │
-│  VAL_001, MAP_001     │    │  tpir_load_equivalent        │
-│  → validation_events  │    │  → Delta tables              │
-└───────────────────────┘    └──────────────┬───────────────┘
-                                            │
-                                            ▼
-                             ┌──────────────────────────────┐
-                             │  nb_reports                  │
-                             │  Report 1 (per DFM)          │
-                             │  Report 2 (roll-up)          │
-                             │  reconciliation_summary.json │
-                             │  → /Files/output/...         │
-                             └──────────────────────────────┘
-                                            │
-                                            ▼
-                             ┌──────────────────────────────┐
-                             │  run_audit_log               │
-                             │  (per DFM, per run)          │
-                             └──────────────────────────────┘
+│ Stage 3: aggregated_dfms_consolidated                                  │
+│ Gate-passing union across DFMs + cross-DFM controls                    │
+│ Downstream projections: policy_aggregates, tpir_load_equivalent        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Implementation Target (PoC)
@@ -68,12 +43,12 @@
 | Notebook | Purpose | Inputs | Outputs |
 |---|---|---|---|
 | `nb_run_all` | Entrypoint; accepts `period` param; generates `run_id`; invokes DFM notebooks in sequence | `period`, config files | `run_id`, invokes child notebooks |
-| `nb_ingest_brown_shipley` | Brown Shipley ingestion | Landing files, `raw_parsing_config.json` | `canonical_holdings`, `parse_errors`, `schema_drift_events`, `run_audit_log` |
-| `nb_ingest_wh_ireland` | WH Ireland ingestion | Landing files, `raw_parsing_config.json` | Same as above |
-| `nb_ingest_pershing` | Pershing ingestion (Positions + Valuation) | Landing files, `raw_parsing_config.json` | Same as above |
-| `nb_ingest_castlebay` | Castlebay ingestion | Landing files, `raw_parsing_config.json` | Same as above |
-| `nb_validate` | Validation rules engine | `canonical_holdings`, `policy_aggregates`, `rules_config.json` | `validation_events` |
-| `nb_aggregate` | Aggregation + tpir output | `canonical_holdings` | `policy_aggregates`, `tpir_load_equivalent` |
+| `nb_ingest_brown_shipley` | Stage 1 + Stage 2 adapter execution for Brown Shipley profile(s) | Landing files, `raw_parsing_config.json` | `source_dfm_raw`, `individual_dfm_consolidated`, governance tables |
+| `nb_ingest_wh_ireland` | Stage 1 + Stage 2 adapter execution for WH Ireland profile(s) | Landing files, `raw_parsing_config.json` | Same as above |
+| `nb_ingest_pershing` | Stage 1 + Stage 2 adapter execution for Pershing profile(s) | Landing files, `raw_parsing_config.json` | Same as above |
+| `nb_ingest_castlebay` | Stage 1 + Stage 2 adapter execution for Castlebay profile(s) | Landing files, `raw_parsing_config.json` | Same as above |
+| `nb_validate` | Stage-gate rules engine | `individual_dfm_consolidated`, `rules_config.json` | `dq_results`, `dq_exception_rows` |
+| `nb_aggregate` | Stage 3 consolidation and output projection | Stage 2 rows passing gate | `aggregated_dfms_consolidated`, `policy_aggregates`, `tpir_load_equivalent` |
 | `nb_reports` | Report generation | `validation_events`, `policy_aggregates`, `canonical_holdings`, `run_audit_log` | `report1_<dfm_id>.csv`, `report2_rollup.csv`, `reconciliation_summary.json` |
 
 ## Shared Library Functions
@@ -120,10 +95,13 @@ All DFM notebooks import a shared Python module providing the following utilitie
 
 All Delta tables live in the Fabric Lakehouse managed by OneLake:
 
-- `canonical_holdings`
+- `source_dfm_raw`
+- `individual_dfm_consolidated`
+- `aggregated_dfms_consolidated`
 - `tpir_load_equivalent`
 - `policy_aggregates`
-- `validation_events`
+- `dq_results`
+- `dq_exception_rows`
 - `run_audit_log`
 - `schema_drift_events`
 - `parse_errors`
@@ -144,10 +122,9 @@ timestamp (e.g., `20251231T142300Z`). Execution order:
 
 ## Design Principles
 
-### 1. DFM Differences Isolated to Config
-DFM-specific logic lives only in `raw_parsing_config.json` and the DFM extractor notebooks.
-Everything downstream of `canonical_holdings` is shared. Adding a fifth DFM requires only a new
-config block and a new ingestion notebook — not changes to validation, aggregation, or reporting.
+### 1. Adapter Profiles, Not Bespoke Pipelines
+DFM and file-type differences are encoded in adapter profile metadata. Core stage logic stays shared.
+Adding a new DFM should require profile and mapping updates, not notebook logic forks.
 
 ### 2. Fault-Tolerant Execution
 If one DFM notebook raises an unrecoverable exception, `nb_run_all` catches it, logs it to
@@ -158,24 +135,27 @@ blocks the rest of the pipeline.
 All numeric operations (GBP conversion, MV recalculation, policy aggregation) use deterministic
 arithmetic. AI assistance is limited to drift detection, schema narrative, and boilerplate only.
 
-### 4. Idempotent Runs
-Row-hash de-duplication in `canonical_holdings` ensures that re-running the same period does not
-produce duplicate rows. The `run_id` in every row provides a full re-run history.
+### 4. Stage-Gated Publication
+Stage 3 publication is driven by gate outcomes. Failing rows are preserved with context but do not
+enter consolidated output.
 
 ### 5. Full Observability
 Every run produces `run_audit_log` (one row per DFM), `parse_errors` (one row per failed row),
 and `schema_drift_events` (one row per detected schema change). There is always a traceable record
 of what happened.
 
-### 6. Config-Driven Validation
-Validation thresholds (MV tolerance, DATE staleness window, MAP residual cash threshold) are
-parameterised in `rules_config.json`. Individual rules can be enabled/disabled without code changes.
+### 6. Config-Driven Validation and Thresholds
+Validation thresholds and enablement are parameterised in config. Rule packs are reusable across DFMs.
+
+### 7. Compatibility During Migration
+Physical table names may temporarily differ from logical stage names during notebook transition. Specs
+remain authoritative for logical contracts.
 
 ---
 
 ## See Also
 
-- [data-model.md](data-model.md) — Delta table schemas and entity definitions
+- [data-model.md](data-model.md) — Stage contracts and entity definitions
 - [product-vision.md](product-vision.md) — Problem space and target outcomes
 - [high-level-requirements.md](high-level-requirements.md) — Functional and NFR
 - [security-baseline.md](security-baseline.md) — Security requirements and controls

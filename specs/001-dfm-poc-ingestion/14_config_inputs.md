@@ -87,7 +87,7 @@ At least one of `isin` or `sedol` must be non-null per row.
 
 ### Lookup Logic
 
-During ingestion, after canonical mapping but before writing to `canonical_holdings`:
+During ingestion, after canonical mapping but before writing to `individual_dfm_consolidated`:
 
 1. If `security_id` (ISIN) is non-null → attempt join on `isin` column; enrich `asset_name` if blank.
 2. If `security_id` is null but a SEDOL is present in the source → attempt join on `sedol` column; populate `security_id` from `isin` if found.
@@ -132,7 +132,7 @@ The raw IH Report must be transformed into the CSV schema below before upload. T
 | `ih_policy_ref` | string | Canonical IH/Spice policy reference | `001234560` |
 | `status` | string | `ACTIVE` or `REMOVE` | `ACTIVE` |
 
-`status = REMOVE` causes the row to be excluded from `tpir_load_equivalent` during aggregation (it is still ingested into `canonical_holdings` for audit).
+`status = REMOVE` causes the row to be excluded from `tpir_load_equivalent` during aggregation (it is still ingested into `individual_dfm_consolidated` for audit).
 
 ### Upload Path
 
@@ -142,7 +142,7 @@ The raw IH Report must be transformed into the CSV schema below before upload. T
 
 ### Relationship to POP_001
 
-`POP_001` in `05_validations.md` joins `canonical_holdings` on `(dfm_id, policy_id)` against this file. Rows with no match produce a `fail` event. Rows with `status = REMOVE` produce a `warning` event (ingested but excluded from TPIR load).
+`POP_001` in `05_validations.md` joins `individual_dfm_consolidated` on `(dfm_id, policy_id)` against this file. Rows with no match produce a `fail` event. Rows with `status = REMOVE` produce a `warning` event (ingested but excluded from TPIR load).
 
 ---
 

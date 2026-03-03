@@ -12,7 +12,7 @@ Fields:
 | `period` | Period (YYYY-MM) |
 | `dfm_id` | DFM identifier |
 | `files_processed` | Number of source files discovered and processed |
-| `rows_ingested` | Rows written to `canonical_holdings` |
+| `rows_ingested` | Rows written to `individual_dfm_consolidated` |
 | `parse_errors_count` | Rows written to `parse_errors` |
 | `drift_events_count` | Rows written to `schema_drift_events` |
 | `status` | `OK`, `NO_FILES`, `PARTIAL`, or `FAILED` |
@@ -25,7 +25,7 @@ Written to `/Files/output/period=YYYY-MM/run_id=<run_id>/reconciliation_summary.
 
 Contents:
 - Totals by DFM for `total_cash_value_gbp`, `total_bid_value_gbp`, `total_accrued_interest_gbp` from `policy_aggregates`
-- Row counts by DFM from `canonical_holdings`
+- Row counts by DFM from `individual_dfm_consolidated`
 - Optional tie-out to expected totals file (if present in `/Files/config/`)
 
 Example structure:

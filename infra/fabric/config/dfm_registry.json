@@ -1,0 +1,28 @@
+{
+  "dfms": [
+    {
+      "dfm_id": "brown_shipley",
+      "display_name": "Brown Shipley Advisory",
+      "input_mode": "raw_confirmation",
+      "enabled": true
+    },
+    {
+      "dfm_id": "wh_ireland",
+      "display_name": "WH Ireland Limited",
+      "input_mode": "raw_confirmation",
+      "enabled": true
+    },
+    {
+      "dfm_id": "pershing",
+      "display_name": "Pershing Securities Limited",
+      "input_mode": "raw_confirmation",
+      "enabled": true
+    },
+    {
+      "dfm_id": "castlebay",
+      "display_name": "Castlebay Investment Partners LLP",
+      "input_mode": "raw_confirmation",
+      "enabled": true
+    }
+  ]
+}

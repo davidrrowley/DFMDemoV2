@@ -3,26 +3,46 @@
     {
       "dfm_id": "brown_shipley",
       "display_name": "Brown Shipley Advisory",
-      "input_mode": "raw_confirmation",
-      "enabled": true
+      "enabled": true,
+      "profile_ids": ["brown_shipley_positions_cash_v1"],
+      "stage_readiness": {
+        "stage1_raw": true,
+        "stage2_standardized": true,
+        "stage3_publish": true
+      }
     },
     {
       "dfm_id": "wh_ireland",
       "display_name": "WH Ireland Limited",
-      "input_mode": "raw_confirmation",
-      "enabled": true
+      "enabled": true,
+      "profile_ids": ["wh_ireland_positions_v1"],
+      "stage_readiness": {
+        "stage1_raw": true,
+        "stage2_standardized": true,
+        "stage3_publish": true
+      }
     },
     {
       "dfm_id": "pershing",
       "display_name": "Pershing Securities Limited",
-      "input_mode": "raw_confirmation",
-      "enabled": true
+      "enabled": true,
+      "profile_ids": ["pershing_positions_valuation_v1"],
+      "stage_readiness": {
+        "stage1_raw": true,
+        "stage2_standardized": true,
+        "stage3_publish": true
+      }
     },
     {
       "dfm_id": "castlebay",
       "display_name": "Castlebay Investment Partners LLP",
-      "input_mode": "raw_confirmation",
-      "enabled": true
+      "enabled": true,
+      "profile_ids": ["castlebay_positions_v1"],
+      "stage_readiness": {
+        "stage1_raw": true,
+        "stage2_standardized": true,
+        "stage3_publish": true
+      }
     }
   ]
 }

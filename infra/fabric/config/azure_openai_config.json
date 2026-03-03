@@ -1,0 +1,33 @@
+{
+  "_comment": "Phase 9 AI config. Supports GitHub Models API (default, low-cost) and Azure OpenAI (optional, production).",
+  
+  "use_github_models": true,
+  "github_token": "TBD",
+  "github_models_endpoint": "https://models.githubnext.com",
+  
+  "api_key": "TBD",
+  "endpoint": "https://<resource-name>.openai.azure.com/",
+  "api_version": "2024-08-01-preview",
+  
+  "schema_mapper_deployment": "gpt-4o",
+  "schema_mapper_max_tokens": 1000,
+  "schema_mapper_temperature": 0.0,
+  
+  "embedding_deployment": "text-embedding-3-small",
+  "embedding_batch_size": 100,
+  "fuzzy_top_k": 3,
+  
+  "anomaly_detector_deployment": "gpt-4o",
+  "anomaly_detector_max_tokens": 1500,
+  "anomaly_detector_temperature": 0.2,
+  "anomaly_min_prior_periods": 2,
+  
+  "triage_deployment": "gpt-4o-mini",
+  "triage_max_tokens": 2000,
+  "triage_temperature": 0.0,
+  "triage_prior_periods": 3,
+  
+  "narrative_deployment": "gpt-4o",
+  "narrative_max_tokens": 800,
+  "narrative_temperature": 0.4
+}

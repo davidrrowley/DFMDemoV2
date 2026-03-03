@@ -1,55 +1,54 @@
-# 04 — Ingestion Framework
+# 04 - Ingestion Framework
 
-## Common Ingestion Steps (all DFMs)
+## Adapter-Profile Execution Model
 
-1. Discover files in `/Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/`
-2. Classify file role(s) per DFM config (positions, cash, valuation, etc.)
-3. Parse (CSV/XLSX) using DFM config from `raw_parsing_config.json`
-4. Extract required fields into a DFM staging DataFrame
-5. Transform to canonical columns per DFM spec
-6. Currency normalisation and GBP population
-7. Append to `canonical_holdings`
-8. Emit drift/parse errors as required
+Each DFM uses one or more adapter profiles. A profile defines file discovery, parsing, mapping, and identifier strategy for one file variant.
 
-## Numeric Parsing Rules
+Profile metadata controls:
 
-Support both:
-- UK/US style: `13,059.70` (thousands separator `,`, decimal `.`)
-- European style: `3.479,29` (thousands separator `.`, decimal `,`)
+- file role patterns
+- file format and sheet/header strategy
+- numeric and date parsing strategy
+- source-to-canonical column mapping
+- identifier priority (`sedol`, `isin`, `security_code`, fallback)
+- policy mapping join key strategy
+- exclusion rule hooks
 
-Detection heuristic: if value contains both `.` and `,`, and `,` appears after `.`, treat as European. If `european_decimals: true` in DFM config, always use European parsing.
+## Common Processing Steps
 
-## Date Parsing Rules
+1. Discover files in `/Files/landing/period=YYYY-MM/dfm=<dfm_id>/source/`.
+2. Classify each file against adapter profile role patterns.
+3. Parse each source using profile-specific parser settings.
+4. Persist Stage 1 rows to `source_dfm_raw`.
+5. Standardize to Stage 2 `individual_dfm_consolidated`.
+6. Persist parse and schema diagnostics.
 
-Support:
-- `dd-MMM-yyyy` — e.g. `31-Dec-2025`
-- `dd/MM/yyyy` — e.g. `31/12/2025`
-- ISO datetime — e.g. `2025-12-31T00:12:00.000`
-- Filename inference — when no date field exists, extract date from filename (e.g. `31Dec25` → `2025-12-31`)
+## Stage 1 Rules
 
-## De-duplication
+- Persist every discoverable row, even when parsing is partial.
+- Capture `source_file`, `source_sheet`, `source_row_id`, and `raw_record_json`.
+- Never discard rows silently.
 
-Implement row-hash de-duplication per DFM role to avoid double counting duplicate file copies.
+## Stage 2 Rules
 
-Hash key: concatenation of all source fields before transformation (SHA-256 or MD5 is acceptable for PoC).
+- Enforce canonical field set and expected data types.
+- Apply policy and security mapping tables by effective period.
+- Resolve identifier via configured priority; record `identifier_chosen`.
+- Set `include_flag` and exclusion reasons deterministically.
+- Record key transformation decisions in `decision_trace_json`.
 
-De-duplication is applied within the ingestion notebook before writing to `canonical_holdings`.
+## Deduplication
 
-## Currency Normalisation
+Use deterministic `row_hash` over stable provenance and key financial fields. Deduplication occurs before Stage 3 publication.
 
-1. If `local_currency` is `GBP` → `fx_rate = 1.0`, `bid_value_gbp = bid_value_local`
-2. Else if DFM provides a GBP-denominated value column → use it directly
-3. Else if `fx_rates.csv` is present → join on `local_currency` and convert
-4. Else → `bid_value_gbp = null`, add flag `FX_NOT_AVAILABLE` to `data_quality_flags`
+## Currency and Value Normalization
+
+1. If local currency is GBP, set `fx_rate=1`.
+2. Else use source-supplied GBP value if present.
+3. Else apply source-supplied FX rate where available.
+4. Else join to period FX table.
+5. Else keep GBP result nullable and flag in `data_quality_flags`.
 
 ## Data Quality Flags
 
-| Flag | Meaning |
-|------|---------|
-| `CURRENCY_ASSUMED_GBP` | Currency absent; GBP assumed |
-| `FX_NOT_AVAILABLE` | FX rate not found; GBP value not computed |
-| `PRICE_ABSENT` | Price field absent or null |
-| `DATE_FROM_FILENAME` | Report date inferred from filename |
-| `ACQ_COST_UNPARSEABLE` | Acquisition cost could not be parsed |
-| `CASH_DEFAULTED` | Cash value defaulted to 0 |
-| `ACCRUED_DEFAULTED` | Accrued interest defaulted to 0 |
+Flags are additive and must remain attached to Stage 2 rows.
