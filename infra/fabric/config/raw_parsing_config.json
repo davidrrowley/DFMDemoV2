@@ -28,10 +28,10 @@
     "sheet_required_columns": [
       "Position as of Date",
       "Account Number",
-      "ISIN",
       "Settled Market Value (PC)",
       "Position Currency"
     ],
+    "notes": "ISIN is optional; missing ISIN/SEDOL indicates cash position. Stage 2 bridge will map to TPY_CASH_* + Undertaking ID_type.",
     "column_mapping": {
       "positions": {
         "policy_id": "Account Number",
