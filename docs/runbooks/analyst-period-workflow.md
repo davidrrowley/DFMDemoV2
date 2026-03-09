@@ -11,6 +11,8 @@
 
 This runbook covers the end-to-end analyst workflow for a single monthly DFM reconciliation period. It replaces the original Excel macro-based process (Reset Workbook → Import FX Rates → Import ISIN Mappings → Import IH Report → Paste confirmation → Review → Paste to tpir_load → Run TPIR Upload Checker → Load to ADS).
 
+If you need to clear prior PoC data before a fresh run, use `docs/runbooks/poc-reset.md` first.
+
 The steps below map directly to the automated pipeline stages:
 
 | Manual Excel step | Automated equivalent |
